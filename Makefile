@@ -1,0 +1,41 @@
+
+
+NAME = program
+CC = c++
+CFLAGS = -Wall -Wextra -Werror -std=c++98 -I $(INC_DIR)
+
+OBJ_DIR = obj
+SRC_DIR = src
+INC_DIR = inc
+
+SRCS = src/test.cpp \
+		
+		
+OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
+
+all: $(NAME)
+
+$(OBJ_DIR):
+	@mkdir -p $(OBJ_DIR)
+
+$(NAME): $(OBJ_DIR) $(OBJS)
+	@echo "Building $(NAME) 🛠️"
+	@$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
+	@echo "Build Complete! ✅"
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+clean:
+	@echo "Cleaning object files 🧹"
+	@rm -rf $(OBJ_DIR)
+	@echo "cleaning ✅"
+
+fclean: clean
+	@echo "Cleaning Executable 🧹"
+	@rm -f $(NAME)
+	@echo "fclean ✅"
+
+re: fclean all
+
+.PHONY: all clean fclean re

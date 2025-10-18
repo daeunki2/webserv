@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/13 18:14:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/13 18:34:00 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/16 10:32:49 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -63,6 +63,18 @@ int main()
     }
     std::cout << "Client connected!" << std::endl;
 
+
+    // 5. Request 수신
+    char buffer[4096] = {0};
+    ssize_t valread = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
+    if (valread < 0) { perror("recv failed"); }
+    else {
+        buffer[valread] = '\0'; // 문자열 종료
+        std::cout << "----- Request Received -----\n";
+        std::cout << buffer << std::endl;
+        std::cout << "----------------------------\n";
+    }
+
     // 5. 최소 HTTP 응답
     const char* response =
         "HTTP/1.1 200 OK\r\n"
@@ -80,3 +92,6 @@ int main()
 
     return 0;
 }
+
+
+//    http://127.0.0.1:8080

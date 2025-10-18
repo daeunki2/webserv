@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/13 18:14:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/16 10:32:49 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/18 14:53:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,3 +95,13 @@ int main()
 
 
 //    http://127.0.0.1:8080
+
+/*
+how to get a msg from client.
+1. open 2 terminal
+2. run server in terminal a
+3. connect to a server and send a request by run this cmd in terminal b
+for GET "curl -v http://127.0.0.1:8080/index.html"
+for POST "curl -v -X POST -d "username=manoi&age=29" http://127.0.0.1:8080/upload"
+for HEAD "curl -v -I http://127.0.0.1:8080/"
+*/

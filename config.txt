@@ -1,0 +1,27 @@
+server {
+    listen 8080;
+    host 0.0.0.0;
+    server_name localhost;
+    root www/localhost;
+    
+    error 404 404.html;
+    client_max_body_size 1M;
+
+    location {
+        path /;
+        index index.html;
+        listing true;
+        method GET,POST;
+    }
+}
+
+config file define the basic setting of server.
+in main we have these line, and we need to use config file to initiation. 
+int server_fd, client_fd;
+struct sockaddr_in address;
+int addrlen = sizeof(address);
+const int PORT = 8080;
+
+address.sin_family = AF_INET;
+address.sin_addr.s_addr = INADDR_ANY;
+address.sin_port = htons(PORT);

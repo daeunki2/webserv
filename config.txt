@@ -13,6 +13,12 @@ server {
         listing true;
         method GET,POST;
     }
+	    location {
+        path /;
+        index index.html;
+        listing true;
+        method GET,POST;
+    }
 }
 
 config file define the basic setting of server.

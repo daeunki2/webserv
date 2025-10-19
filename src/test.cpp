@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/13 18:14:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/18 14:53:25 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/19 15:47:27 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,7 +24,7 @@ int main()
     int server_fd, client_fd;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
-    const int PORT = 8080;
+   const int PORT = 8080;
 
     // 1. 소켓 생성
     server_fd = socket(AF_INET, SOCK_STREAM, 0);

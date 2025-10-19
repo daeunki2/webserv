@@ -6,18 +6,16 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/18 20:42:58 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/19 15:46:12 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 /*
-
 server {
     listen 8080;
     host 0.0.0.0;
     server_name localhost;
     root www/localhost;
-    
     error 404 404.html;
     client_max_body_size 1M;
 

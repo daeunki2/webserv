@@ -1,34 +1,65 @@
-/* server 
+/*
+config rulls
 key word shold be key word. 
 list of key wird.
 {}
 no comment
 
 */
-serve {
-    listen 8080, 8081,;
-    host 0.0.0.0;
-    server_name localhost;
-    root www/localhost;
-    
-    error 404 404.html;
-    client_max_body_size 1M;
+# Exemple complet d’un fichier Webserv
+# (les commentaires commencent par #)
 
-    location /page_name{ 
-        index index.html;
-        listing true;
-        method GET,POST;
+server {
+    listen 8080;
+    server_name localhost;
+    root ./www/default;
+    index index.html index.htm;
+
+    error_page 404 /errors/404.html;
+    client_max_body_size 5M;
+
+    location / {
+        autoindex off;
     }
-	    location {
-        path /khfksdghkdf;
-        index index.html;
-        listing true;
-        method GET,    }
-	    location /c{
-        path /;
-        index index.html;
-        listing true;
-        method GET,POST;
+
+    location /images {
+        root ./www/images;
+        autoindex on;
+    }
+
+    location /upload {
+        root ./www/uploads;
+        upload_enable on;
+        upload_store ./www/uploads/files;
+    }
+
+    location /cgi-bin {
+        root ./www/cgi;
+        cgi_ext .py /usr/bin/python3;
+        cgi_ext .php /usr/bin/php-cgi;
+    }
+}
+
+server {
+    listen 8081;
+    server_name mysite.fr;
+    root ./www/mysite;
+    index home.html;
+
+    location /admin {
+        auth_basic on;
+        auth_user_file ./conf/users.txt;
+    }
+
+    location /downloads {
+        root ./www/mysite/files;
+        autoindex on;
+        allow_methods GET HEAD;
+    }
+
+    location /api {
+        cgi_ext .py /usr/bin/python3;
+        cgi_pass ./scripts/api.py;
     }
 }
 

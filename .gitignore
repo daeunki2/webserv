@@ -1,0 +1,23 @@
+#object files
+/obj
+a.out
+*.o
+*.out
+*.exe
+
+#for mac
+.DS_Store
+
+#temp files
+*~
+*.swp
+*.tmp
+
+#programe
+webserv
+
+#setting
+.vscode/
+.idea/
+*.json
+

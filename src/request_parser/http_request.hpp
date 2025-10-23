@@ -1,41 +1,27 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   request_parser.hpp                                 :+:      :+:    :+:   */
+/*   http_request.hpp                                   :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/23 19:16:01 by daeunki2         ###   ########.fr       */
+/*   Created: 2025/10/23 19:03:30 by daeunki2          #+#    #+#             */
+/*   Updated: 2025/10/23 19:12:14 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 /*============================================================================*/
-/*       take the raw request, parse it, and store in http_request class      */
+/*              store important information from raw request                  */
 /*============================================================================*/
 
+#ifndef HTTP_REQUEST_HPP
+#define HTTP_REQUEST_HPP
 
-#ifndef REQUEST_PARSER_HPP
-#define REQUEST_PARSER_HPP
-
-#include <string>
-
-class request_parser
+class http_request
 {
 	private :
-	std::string methood;
-	std::string location;
-	std::string host;
 
 	public :
 };
 
 #endif
-
-
-// > POST /upload HTTP/1.1
-// > Host: 127.0.0.1:8080
-// > User-Agent: curl/7.81.0
-// > Accept: */* 
-// > Content-Length: 21
-// > Content-Type: application/x-www-form-urlencoded

@@ -6,9 +6,13 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:05 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/19 18:25:27 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/23 19:13:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
+
+/*============================================================================*/
+/*                  store the information in location scoope                  */
+/*============================================================================*/
 
 #ifndef LOCATION_HPP
 #define LOCATION_HPP
@@ -16,9 +20,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
-/*
-ps. if you don't like the name, you cna change! 
-*/
+
 class location
 {
 	private : 

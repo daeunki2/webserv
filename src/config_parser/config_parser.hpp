@@ -6,13 +6,17 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/19 16:54:31 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/23 19:13:17 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+/*============================================================================*/
+/*    take the config file, parse it, and store in server or location class   */
+/*============================================================================*/
+
+
 #ifndef CONFIG_PARSER_HPP
 #define CONFIG_PARSER_HPP
-
 
 class config_parser
 {

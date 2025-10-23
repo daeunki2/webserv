@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/23 19:16:01 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/23 19:38:12 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,16 +18,23 @@
 #ifndef REQUEST_PARSER_HPP
 #define REQUEST_PARSER_HPP
 
+#include "http_request.hpp"
 #include <string>
+#include <sstream>
 
-class request_parser
+class http_request;
+
+class RequestParser
 {
-	private :
-	std::string methood;
-	std::string location;
-	std::string host;
+	public:
+	http_request parse(const std::string &raw_request);
 
-	public :
+	private:
+	// 내부 파싱 단계별 함수
+	void parseRequestLine(http_request &req, std::istringstream &stream);
+	void parseHeaders(http_request &req, std::istringstream &stream);
+	void parseBody(http_request &req, std::istringstream &stream);
+	void trim(std::string &str);
 };
 
 #endif

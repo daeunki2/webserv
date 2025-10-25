@@ -6,7 +6,7 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/10/23 19:31:25 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/10/25 21:14:18 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -18,22 +18,27 @@ OBJ_DIR = obj
 SRC_DIR = src
 INC_DIR = inc
 
-SRCS = src/test.cpp \
-		
-		
+SRCS = $(SRC_DIR)/test.cpp \
+        $(SRC_DIR)/request_parser/http_request.cpp \
+        $(SRC_DIR)/request_parser/request_parser.cpp
+        
+        
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 all: $(NAME)
 
-$(OBJ_DIR):
-	@mkdir -p $(OBJ_DIR)
+# --- 1. $(OBJ_DIR): 타겟을 제거합니다 (아래 규칙에서 처리됨) ---
 
-$(NAME): $(OBJ_DIR) $(OBJS)
+$(NAME): $(OBJS)
 	@echo "Building $(NAME) 🛠️"
 	@$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
 	@echo "Build Complete! ✅"
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp | $(OBJ_DIR)
+# --- 2. 객체 파일 생성 규칙 수정 (하위 디렉토리 자동 생성) ---
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+    # $@는 목표 파일 이름(예: obj/request_parser/http_request.o)입니다.
+    # $(dir $@)는 해당 파일의 디렉토리 경로(예: obj/request_parser/)를 반환합니다.
+	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
 
 clean:

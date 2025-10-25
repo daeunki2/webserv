@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/13 18:14:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/19 15:47:27 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/25 21:17:15 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,22 +15,23 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <iostream>
 #include <cstring>
 #include <cstdio>
+#include <string> // std::string을 사용하기 위해 추가
 
 int main()
 {
     int server_fd, client_fd;
     struct sockaddr_in address;
     int addrlen = sizeof(address);
-   const int PORT = 8080;
+    const int PORT = 8080;
+    int opt = 1;
 
-    // 1. 소켓 생성
+    // 1. 소켓 생성 및 REUSEADDR 설정
     server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if (server_fd < 0)
-	{
-        perror("socket failed");
+    if (server_fd < 0) { perror("socket failed"); return 1; }
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        perror("setsockopt");
         return 1;
     }
 
@@ -39,54 +40,71 @@ int main()
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
 
-    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0)
-	{
-        perror("bind failed");
-        return 1;
-    }
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) { perror("bind failed"); return 1; }
 
     // 3. 리슨
-    if (listen(server_fd, 3) < 0)
-	{
-        perror("listen failed");
-        return 1;
-    }
+    if (listen(server_fd, 3) < 0) { perror("listen failed"); return 1; }
 
     std::cout << "Server listening on port " << PORT << std::endl;
 
     // 4. 클라이언트 연결 처리
     client_fd = accept(server_fd, (struct sockaddr*)&address, (socklen_t*)&addrlen);
-    if (client_fd < 0)
-	{
-        perror("accept failed");
-        return 1;
-    }
+    if (client_fd < 0) { perror("accept failed"); close(server_fd); return 1; }
     std::cout << "Client connected!" << std::endl;
 
 
-    // 5. Request 수신
-    char buffer[4096] = {0};
-    ssize_t valread = recv(client_fd, buffer, sizeof(buffer) - 1, 0);
-    if (valread < 0) { perror("recv failed"); }
-    else {
-        buffer[valread] = '\0'; // 문자열 종료
-        std::cout << "----- Request Received -----\n";
-        std::cout << buffer << std::endl;
-        std::cout << "----------------------------\n";
+    // 5. Request 수신 루프 (요청 전체를 받기 위해)
+    char temp_buffer[1024];
+    ssize_t valread;
+    std::string request_buffer;
+    const std::string EOH = "\r\n\r\n"; // End of Headers
+
+    std::cout << "[INFO] Waiting for full request..." << std::endl;
+
+    while (true)
+    {
+        valread = recv(client_fd, temp_buffer, sizeof(temp_buffer), 0);
+        
+        if (valread <= 0) {
+            if (valread == 0) std::cout << "[INFO] Client closed connection." << std::endl;
+            else perror("recv failed");
+            break; 
+        }
+
+        // 수신된 데이터를 전체 버퍼에 추가
+        request_buffer.append(temp_buffer, valread);
+
+        // 헤더 종료 시그널(\r\n\r\n)이 있는지 확인
+        if (request_buffer.find(EOH) != std::string::npos) {
+            std::cout << "[INFO] End of Headers found." << std::endl;
+            break;
+        }
+        
+        // 간단한 GET 요청은 바디가 없으므로 EOH를 발견하면 break
+        // POST 요청의 경우, Content-Length 등을 확인하여 바디를 더 읽어야 하지만
+        // 지금은 브라우저 GET 요청을 확인하는 것이 목적이므로 EOH까지만 받음
     }
 
-    // 5. 최소 HTTP 응답
+
+    // 6. 요청 출력
+    if (!request_buffer.empty()) {
+        std::cout << "\n----- Actual Browser Request Received -----\n";
+        std::cout << request_buffer; // 전체 요청을 출력
+        std::cout << "\n-----------------------------------------\n";
+    }
+
+    // 7. 최소 HTTP 응답
     const char* response =
         "HTTP/1.1 200 OK\r\n"
-        "Content-Type: text/html\r\n"
-        "Content-Length: 100\r\n"
+        "Content-Type: text/plain\r\n" // 텍스트로 변경하여 브라우저 출력을 명확하게 함
+        "Content-Length: 5\r\n"
         "\r\n"
-        "<h1>Hello World~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~!</h1>";
+        "DONE\n";
 
     send(client_fd, response, strlen(response), 0);
     std::cout << "Response sent!" << std::endl;
 
-    // 6. 소켓 종료
+    // 8. 소켓 종료
     close(client_fd);
     close(server_fd);
 
@@ -105,3 +123,15 @@ for GET "curl -v http://127.0.0.1:8080/index.html"
 for POST "curl -v -X POST -d "username=manoi&age=29" http://127.0.0.1:8080/upload"
 for HEAD "curl -v -I http://127.0.0.1:8080/"
 */
+
+
+/*
+서버 실행: ./(프로그램 이름)
+
+다른 터미널에서 접속: nc localhost 8080
+
+결과:
+
+당신이 터미널에 GET /test HTTP/1.1을 입력하고 엔터를 치면, 서버는 recv를 호출하고 잠시 대기합니다.
+
+이 상태에서 엔터를 한 번 더 쳐서 \r\n\r\n을 전송하여 요청을 마감하면, recv가 해제되고 서버 콘솔에 당신이 입력한 내용만 정확히 출력됩니다.*/

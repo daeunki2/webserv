@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/23 19:38:12 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/25 20:48:48 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,22 +21,47 @@
 #include "http_request.hpp"
 #include <string>
 #include <sstream>
+#include <iostream>
 
 class http_request;
 
-class RequestParser
+enum ParsingState
 {
-	public:
-	http_request parse(const std::string &raw_request);
-
-	private:
-	// 내부 파싱 단계별 함수
-	void parseRequestLine(http_request &req, std::istringstream &stream);
-	void parseHeaders(http_request &req, std::istringstream &stream);
-	void parseBody(http_request &req, std::istringstream &stream);
-	void trim(std::string &str);
+	REQUEST_LINE_START,
+	READING_REQUEST_LINE,
+	READING_HEADERS,
+	READING_BODY,
+	PARSING_COMPLETED,
+	PARSING_ERROR
 };
 
+class RequestParser
+{
+	private:
+	ParsingState	m_state;
+	std::string		m_buffer;
+
+	http_request	m_request;
+
+	ParsingState parseRequestLine(std::string &data);
+	ParsingState parseHeaders(std::string &data);
+	ParsingState parseBody(std::string &data);
+	
+	void trim(std::string &str);
+
+	public:
+	RequestParser();
+	RequestParser(const RequestParser& src);
+	RequestParser& operator=(const RequestParser& src);
+	~RequestParser();
+
+	ParsingState load_data(const char* data, size_t size); 
+	
+	ParsingState get_state() const { return m_state; }
+	const http_request& get_request() const { return m_request; }
+
+	void reset(); 
+};
 #endif
 
 

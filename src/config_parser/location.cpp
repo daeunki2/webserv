@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:12 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/19 18:27:21 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/25 15:15:45 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -82,7 +82,7 @@ std::string location::get_auto_user_file()
 	return(auto_user_file);
 };
 
-std::vector<int>	location::get_index()
+std::vector<std::string>	location::get_index()
 {
 	return(index);
 }
@@ -140,7 +140,7 @@ void	location::set_auto_user_file(std::string input)
 {
 	auto_user_file = input;
 };
-void	location::set_index(std::vector<int> input)
+void	location::set_index(std::vector<std::string> input)
 {
 	index = input;
 };

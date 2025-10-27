@@ -1,0 +1,32 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   libft.cpp                                          :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2025/10/27 16:46:11 by daeunki2          #+#    #+#             */
+/*   Updated: 2025/10/27 16:50:08 by daeunki2         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#include "libft_string.hpp"
+
+std::vector<std::string> split(const std::string &str, char delimiter)
+{
+    std::vector<std::string> result;
+    size_t start = 0;
+    size_t end;
+
+    while ((end = str.find(delimiter, start)) != std::string::npos)
+    {
+        if (end != start)
+            result.push_back(str.substr(start, end - start));
+        start = end + 1;
+    }
+
+    if (start < str.size())
+        result.push_back(str.substr(start));
+
+    return result;
+}

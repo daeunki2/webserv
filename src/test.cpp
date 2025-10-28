@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/13 18:14:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/25 21:17:15 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/28 14:56:13 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -57,7 +57,7 @@ int main()
     char temp_buffer[1024];
     ssize_t valread;
     std::string request_buffer;
-    const std::string EOH = "\r\n\r\n"; // End of Headers
+    const std::string EOH = "\r\n" "\r\n\r\n"; // End of Headers
 
     std::cout << "[INFO] Waiting for full request..." << std::endl;
 
@@ -65,7 +65,8 @@ int main()
     {
         valread = recv(client_fd, temp_buffer, sizeof(temp_buffer), 0);
         
-        if (valread <= 0) {
+        if (valread <= 0)
+		{
             if (valread == 0) std::cout << "[INFO] Client closed connection." << std::endl;
             else perror("recv failed");
             break; 
@@ -75,7 +76,8 @@ int main()
         request_buffer.append(temp_buffer, valread);
 
         // 헤더 종료 시그널(\r\n\r\n)이 있는지 확인
-        if (request_buffer.find(EOH) != std::string::npos) {
+        if (request_buffer.find(EOH) != std::string::npos)
+		{
             std::cout << "[INFO] End of Headers found." << std::endl;
             break;
         }

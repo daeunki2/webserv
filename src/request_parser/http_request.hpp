@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/23 19:03:30 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/27 13:40:04 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/28 15:46:22 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,7 @@ Header	Connection	연결을 유지(keep-alive)할지 요청 처리 후 즉시 �
 #include <map>
 #include <algorithm> // for std::transform
 #include <cctype>    // for ::tolower
-
+#include <iostream>
 class http_request
 {
 private:
@@ -76,6 +76,25 @@ public:
     void append_body(const std::string &data); // body는 누적되어 추가될 수 있음
     bool is_chunked() const;
     void reset();
+
+// ** Test Output (인자 개수 오류 수정) **
+    void print_parsed_data(const std::string& type) const
+    {
+        std::cout << "\n--- 🔍 " << type << " 파싱된 HTTP 요청 데이터 ---" << std::endl;
+        std::cout << "  Method: " << m_method << std::endl;
+        std::cout << "  URI Path: " << m_uri_path << std::endl;
+        std::cout << "  Query: " << m_query_string << std::endl;
+        std::cout << "  Version: " << m_version << std::endl;
+        std::cout << "  Content-Length: " << m_content_length << std::endl;
+        std::cout << "  is_chunked: " << (m_is_chunked ? "true" : "false") << std::endl;
+        std::cout << "  Headers (" << m_headers.size() << "):" << std::endl;
+        for (std::map<std::string, std::string>::const_iterator it = m_headers.begin(); it != m_headers.end(); ++it) {
+            // 헤더 키는 소문자로 저장되었음을 출력
+            std::cout << "    [" << it->first << "]: [" << it->second << "]" << std::endl;
+        }
+        std::cout << "  Body (" << m_body.size() << " bytes):\n" << m_body.substr(0, std::min((size_t)200, m_body.size())) << (m_body.size() > 200 ? "..." : "") << std::endl;
+        std::cout << "-----------------------------------" << std::endl;
+    }
 };
 
 #endif

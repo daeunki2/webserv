@@ -6,7 +6,7 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/10/25 21:14:18 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/10/28 15:38:53 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -18,9 +18,9 @@ OBJ_DIR = obj
 SRC_DIR = src
 INC_DIR = inc
 
-SRCS = $(SRC_DIR)/test.cpp \
+SRCS = $(SRC_DIR)/request_parser/s_test.cpp \
         $(SRC_DIR)/request_parser/http_request.cpp \
-        $(SRC_DIR)/request_parser/request_parser.cpp
+        $(SRC_DIR)/request_parser/request_parser.cpp \
         
         
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)

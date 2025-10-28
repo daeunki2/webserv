@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/27 17:30:53 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/28 15:38:49 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,14 +19,14 @@
 #define REQUEST_PARSER_HPP
 
 #include "http_request.hpp"
-#include "libft.hpp"
+#include "../libft.hpp"
 #include <string>
 #include <sstream>
 #include <iostream>
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
-#include <cerrno>  
+#include <cerrno>
 
 class http_request;
 
@@ -41,13 +41,23 @@ enum ParsingState
     PARSING_ERROR
 };
 
+enum ChunkState
+{	READING_SIZE,
+	READING_DATA,
+	CONSUMING_CRLF,
+	FINISHED
+};
+
 class RequestParser
 {
 	private:
 	ParsingState	m_state;
+	ChunkState		m_chunk_state;
 	std::string		m_buffer;
 	http_request	m_request;
 	size_t          m_current_body_size;
+	size_t          m_current_chunk_size;
+
 	
 	ParsingState parseRequestLine();
     ParsingState parseHeaders();
@@ -58,6 +68,9 @@ class RequestParser
     // 헬퍼 함수
     std::string extract_line(); // 버퍼에서 \r\n을 포함하는 한 줄을 추출하고 버퍼에서 제거
 	void trim(std::string &str);
+	std::string line_extracter(std::string separator);
+	std::vector<std::string> split(const std::string &str, char delimiter);
+
 	
 public:
     RequestParser();
@@ -77,14 +90,14 @@ public:
 /*
 HTTP protocall
 
-POST /upload_file HTTP/1.1 >>>  Request Line
-//header stasrt.
-Host: webserv.com >> parseHeaders
+POST /upload_file HTTP/1.1 >>>  Request Line it is always the first line
+//header stasrt. all header line fini with "\r\n"
+Host: webserv.com \r\n
 User-Agent: Mozilla/5.0
 Content-Type: multipart/form-data; boundary=----WebKitFormBoundary7MA4YW
 Content-Length: 1258900
 Connection: keep-alive
-//headers fini
+//headers fini with "\r\n\r\n"
 //body start
 1258900 bite later...
 //body fini

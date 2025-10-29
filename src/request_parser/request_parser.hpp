@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/28 15:38:49 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/29 14:19:44 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,6 @@
 #define REQUEST_PARSER_HPP
 
 #include "http_request.hpp"
-#include "../libft.hpp"
 #include <string>
 #include <sstream>
 #include <iostream>

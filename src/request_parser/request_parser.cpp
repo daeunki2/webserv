@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/28 16:45:11 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/29 14:16:35 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -370,9 +370,8 @@ ParsingState RequestParser::load_data(const char* data, size_t size)
 			m_state = parseChunkedBody();
 		if (m_state == old_state)
 		{
-			break; // 💡 1번 수정으로 인해 이 break는 이제 데이터가 부족할 때만 발생해야 합니다.
+			break;
 		}
 	}
-    // ...
 	return m_state;
 }

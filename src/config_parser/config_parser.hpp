@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/23 19:13:17 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/30 13:58:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,33 +15,47 @@
 /*============================================================================*/
 
 
-#ifndef CONFIG_PARSER_HPP
-#define CONFIG_PARSER_HPP
+#ifndef CONFIGPARSER_HPP
+# define CONFIGPARSER_HPP
 
-class config_parser
+# include "ServerConfig.hpp"
+# include <string>
+# include <vector>
+# include <fstream>
+# include <sstream>
+# include <stdexcept>
+# include <iostream>
+
+class ConfigParser
 {
-	
+	private:
+	std::vector<server>   _servers;
+	std::vector<std::string>    _tokens;
+	size_t                      _current_index;
+
+	void                        _tokenize(const std::string& filename);
+	std::string                 _getNextToken();
+	std::string                 _peekNextToken() const;
+	void                        _expectToken(const std::string& expected);
+	long                        _parseSize(const std::string& size_str); // 5M -> bytes 변환
+
+	ServerConfig                _parseServerBlock();
+	LocationConfig              _parseLocationBlock(ServerConfig& current_server);
+
+	void                        _parseServerDirective(ServerConfig& server);
+	void                        _parseLocationDirective(LocationConfig& location);
+
+	void                        _parseIndex(std::vector<std::string>& index_files);
+
+	public:
+	ConfigParser();
+	~ConfigParser();
+
+	void parse(const std::string& filename);
+	const std::vector<ServerConfig>& getServers() const;
 };
 
 #endif
-/*
-server {
-    listen 8080;
-    host 0.0.0.0;
-    server_name localhost;
-    root www/localhost;
-    error 404 404.html;
-    client_max_body_size 1M;
-
-    location {
-        path /;
-        index index.html;
-        listing true;
-        method GET,POST;
-    }
-}
-
-*/
 
 /*
 logic

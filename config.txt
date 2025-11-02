@@ -63,13 +63,126 @@ server {
     }
 }
 
-config file define the basic setting of server.
-in main we have these line, and we need to use config file to initiation. 
-int server_fd, client_fd;
-struct sockaddr_in address;
-int addrlen = sizeof(address);
-const int PORT = 8080;
+server {
+    // [server] m_port, m_host에 저장. (여기서는 '127.0.0.1:8080'으로 파싱되어 m_host="127.0.0.1", m_port=8080)
+    listen 8080; 
+    
+    // [server] m_server_name에 저장.
+    server_name localhost; 
+    
+    // [server] m_root에 저장. 서버 전체의 기본 루트 경로.
+    root ./www/default; 
+    
+    // [server] m_index_files (std::vector<std::string>)에 저장.
+    index index.html index.htm; 
 
-address.sin_family = AF_INET;
-address.sin_addr.s_addr = INADDR_ANY;
-address.sin_port = htons(PORT);
+    // [server] m_error_pages (std::map<int, std::string>)에 저장. (404 -> /errors/404.html)
+    error_page 404 /errors/404.html; 
+    
+    // [server] m_client_max_body_size (long)에 저장. 파서가 '5M'을 바이트 단위(5242880)로 변환해야 함.
+    client_max_body_size 5M; 
+
+    // **********************************************
+    // Location Block 1: 루트 경로
+    // **********************************************
+    location / {
+        // [location] m_path에 저장.
+        // [location] m_autoindex (bool)에 저장. (false)
+        autoindex off; 
+    }
+
+    // **********************************************
+    // Location Block 2: /images 경로
+    // **********************************************
+    location /images {
+        // [location] m_path에 저장.
+        // [location] m_root에 저장. (Server root 오버라이드)
+        root ./www/images; 
+        
+        // [location] m_autoindex (bool)에 저장. (true)
+        autoindex on; 
+    }
+
+    // **********************************************
+    // Location Block 3: /upload 경로
+    // **********************************************
+    location /upload {
+        // [location] m_path에 저장.
+        // [location] m_root에 저장. (Server root 오버라이드)
+        root ./www/uploads; 
+        
+        // [location] m_upload_enable (bool)에 저장. (true)
+        upload_enable on; 
+        
+        // [location] m_upload_store에 저장.
+        upload_store ./www/uploads/files; 
+    }
+
+    // **********************************************
+    // Location Block 4: /cgi-bin 경로
+    // **********************************************
+    location /cgi-bin {
+        // [location] m_path에 저장.
+        // [location] m_root에 저장.
+        root ./www/cgi; 
+        
+        // [location] m_cgi_extensions (std::map)에 저장. (.py -> /usr/bin/python3)
+        cgi_ext .py /usr/bin/python3; 
+        
+        // [location] m_cgi_extensions (std::map)에 저장. (.php -> /usr/bin/php-cgi)
+        cgi_ext .php /usr/bin/php-cgi; 
+    }
+}
+
+server {
+    // [server] m_port에 저장. (m_host는 기본값 0.0.0.0)
+    listen 8081; 
+    
+    // [server] m_server_name에 저장.
+    server_name mysite.fr; 
+    
+    // [server] m_root에 저장.
+    root ./www/mysite; 
+    
+    // [server] m_index_files에 저장. (index 파일 목록 재정의)
+    index home.html; 
+
+    // **********************************************
+    // Location Block 1: /admin 경로 (인증)
+    // **********************************************
+    location /admin {
+        // [location] m_path에 저장.
+        // [location] m_auth_basic에 저장.
+        auth_basic on; 
+        
+        // [location] m_auth_user_file에 저장.
+        auth_user_file ./conf/users.txt; 
+    }
+
+    // **********************************************
+    // Location Block 2: /downloads 경로
+    // **********************************************
+    location /downloads {
+        // [location] m_path에 저장.
+        // [location] m_root에 저장.
+        root ./www/mysite/files; 
+        
+        // [location] m_autoindex에 저장. (true)
+        autoindex on; 
+        
+        // [location] m_allowed_methods (std::vector)에 저장.
+        allow_methods GET HEAD; 
+    }
+
+    // **********************************************
+    // Location Block 3: /api 경로 (CGI Pass)
+    // **********************************************
+    location /api {
+        // [location] m_path에 저장.
+        // [location] m_cgi_extensions (std::map)에 저장.
+        cgi_ext .py /usr/bin/python3; 
+        
+        // [location] m_cgi_pass에 저장. (CGI 스크립트 실행 파일 대신 특정 스크립트 파일 지정)
+        cgi_pass ./scripts/api.py; 
+    }
+}

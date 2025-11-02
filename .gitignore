@@ -13,6 +13,9 @@ a.out
 *.swp
 *.tmp
 
+#the project file
+*.pdf
+
 #programe
 webserv
 

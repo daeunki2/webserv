@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/29 14:19:44 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/02 15:57:03 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,23 +29,6 @@
 
 class http_request;
 
-enum ParsingState
-{
-    REQUEST_LINE,
-    HEADERS,
-    HEADERS_DONE,
-    READING_BODY,
-    READING_CHUNKED_BODY,
-    PARSING_COMPLETED,
-    PARSING_ERROR
-};
-
-enum ChunkState
-{	READING_SIZE,
-	READING_DATA,
-	CONSUMING_CRLF,
-	FINISHED
-};
 
 class RequestParser
 {
@@ -56,7 +39,6 @@ class RequestParser
 	http_request	m_request;
 	size_t          m_current_body_size;
 	size_t          m_current_chunk_size;
-
 	
 	ParsingState parseRequestLine();
     ParsingState parseHeaders();
@@ -71,18 +53,33 @@ class RequestParser
 	std::vector<std::string> split(const std::string &str, char delimiter);
 
 	
-public:
-    RequestParser();
-    RequestParser(const RequestParser& src);
-    RequestParser& operator=(const RequestParser& src);
-    ~RequestParser();
+	public:
+	enum ParsingState
+	{
+	REQUEST_LINE,
+	HEADERS,
+	HEADERS_DONE,
+	READING_BODY,
+	READING_CHUNKED_BODY,
+	PARSING_COMPLETED,
+	PARSING_ERROR
+	};
 
-    ParsingState load_data(const char* data, size_t size); 
-    
-    ParsingState get_state() const;
-    const http_request& get_request() const;
+	enum ChunkState
+	{	READING_SIZE,
+		READING_DATA,
+		CONSUMING_CRLF,
+		FINISHED
+	};
 
-    void reset();
+	RequestParser();
+	RequestParser(const RequestParser& src);
+	RequestParser& operator=(const RequestParser& src);
+	~RequestParser();
+	ParsingState load_data(const char* data, size_t size); 
+	ParsingState get_state() const;
+	const http_request& get_request() const;
+	void reset();
 };
 #endif
 

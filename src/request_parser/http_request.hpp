@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/23 19:03:30 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/28 15:46:22 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/30 11:18:16 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -77,6 +77,11 @@ public:
     bool is_chunked() const;
     void reset();
 
+};
+
+#endif
+
+/*
 // ** Test Output (인자 개수 오류 수정) **
     void print_parsed_data(const std::string& type) const
     {
@@ -95,6 +100,4 @@ public:
         std::cout << "  Body (" << m_body.size() << " bytes):\n" << m_body.substr(0, std::min((size_t)200, m_body.size())) << (m_body.size() > 200 ? "..." : "") << std::endl;
         std::cout << "-----------------------------------" << std::endl;
     }
-};
-
-#endif
+*/

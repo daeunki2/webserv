@@ -6,160 +6,184 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:12 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/25 15:15:45 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/30 14:16:28 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "location.hpp"
 
-location::location()
+// ******************************************************
+//              Constructors & Destructor
+// ******************************************************
+location::location() :
+    m_path(""),
+    m_root(""),
+    m_autoindex(false),
+    m_upload_enable(false),
+    m_upload_store(""),
+    m_cgi_pass(""),
+    m_auth_basic("off"),
+    m_auth_user_file("")
 {
-	m_get = false;
-	m_delete = false;
-	m_post = false;
-};
-location::location(const location& src)
-{
-	*this = src;
-};
-location::~location()
-{
-	
-};
+    // 기본 허용 메서드 설정
+    m_allowed_methods.push_back("GET");
+    m_allowed_methods.push_back("POST");
+    m_allowed_methods.push_back("DELETE");
+}
+
+location::location(const location& src) :
+    m_path(src.m_path),
+    m_root(src.m_root),
+    m_index_files(src.m_index_files),
+    m_allowed_methods(src.m_allowed_methods),
+    m_autoindex(src.m_autoindex),
+    m_upload_enable(src.m_upload_enable),
+    m_upload_store(src.m_upload_store),
+    m_cgi_extensions(src.m_cgi_extensions),
+    m_cgi_pass(src.m_cgi_pass),
+    m_auth_basic(src.m_auth_basic),
+    m_auth_user_file(src.m_auth_user_file)
+{}
+
 location& location::operator=(const location& src)
 {
-	if (this != &src)
-	{
-		destination = src.destination;
-		path = src.path;
-		index = src.index;
-		root= src.root;
-		upload_store = src.upload_store;
-		cgi_ext =cgi_ext;
-		cgi_pass = cgi_pass;
-		auto_user_file = src.auto_user_file;
-		auto_basic = src.auto_basic;
-		autoindex = src.autoindex;
-		upload_enable = src.upload_enable;
-		m_get = src.m_get; 
-		m_post = src.m_post;
-		m_delete = src.m_delete;
-	}
-	return (*this);
-};
-
-
-
-
-//getters
-std::string location::get_destination()
-{
-	return(destination);
-};
-std::string location::get_path()
-{
-	return(path);	
-};
-
-std::string location::get_root()
-{
-	return(root);
-};
-std::string location::get_upload_store()
-{
-	return(upload_store);
-};
-std::string location::get_cgi_ext()
-{
-	return(cgi_ext);
-};
-std::string location::get_cgi_pass()
-{
-	return(cgi_pass);
-};
-std::string location::get_auto_user_file()
-{
-	return(auto_user_file);
-};
-
-std::vector<std::string>	location::get_index()
-{
-	return(index);
+    if (this != &src) {
+        m_path = src.m_path;
+        m_root = src.m_root;
+        m_index_files = src.m_index_files;
+        m_allowed_methods = src.m_allowed_methods;
+        m_autoindex = src.m_autoindex;
+        m_upload_enable = src.m_upload_enable;
+        m_upload_store = src.m_upload_store;
+        m_cgi_extensions = src.m_cgi_extensions;
+        m_cgi_pass = src.m_cgi_pass;
+        m_auth_basic = src.m_auth_basic;
+        m_auth_user_file = src.m_auth_user_file;
+    }
+    return *this;
 }
 
-bool	location::get_on_or_off(std::string flag)
-{
-	if(flag == "auto_basic")
-		return (auto_basic);
-	else if (flag == "autoindex")
-		return(autoindex);
-	else
-		return(upload_enable);
-}
-
-
-bool location::get_method(std::string flag)
-{
-	if(flag == "get")
-		return (m_get);
-	else if (flag == "delete")
-		return(m_delete);
-	else
-		return(m_post);
-};
+location::~location() {}
 
 
 
-//setters
-void location::set_destination(std::string input)
+// ******************************************************
+//                       Setter
+// ******************************************************
+void location::set_Path(const std::string& p)
 {
-	destination = input;
-};
-void location::set_path(std::string input)
-{
-	path = input;
+	m_path = p;
 };
 
-void	location::set_root(std::string input)
+void location::set_Root(const std::string& r)
 {
-	root = input;
-};
-void	location::set_upload_store(std::string input)
-{
-	upload_store = input;
-};
-void	location::set_cgi_ext(std::string input)
-{
-	cgi_ext = input;
-};
-void	location::set_cgi_pass(std::string input)
-{
-	cgi_pass = input;
-};
-void	location::set_auto_user_file(std::string input)
-{
-	auto_user_file = input;
-};
-void	location::set_index(std::vector<std::string> input)
-{
-	index = input;
-};
-void	location::set_on_or_off(std::string flag, bool status)
-{
-	if(flag == "auto_basic")
-		auto_basic = status;
-	else if (flag == "autoindex")
-		autoindex= status;
-	else
-		upload_enable = status;
+	m_root = r;
 };
 
-void	location::set_method(std::string flag, bool status)
+void location::set_Autoindex(bool state)
 {
-	if(flag == "get")
-		m_get = status;
-	else if (flag == "delete")
-		m_delete = status;
-	else
-		m_post = status;
+	m_autoindex = state;
+};
+
+void location::set_UploadEnable(bool state)
+{
+	m_upload_enable = state;
+};
+
+void location::set_UploadStore(const std::string& path)
+{
+	m_upload_store = path;
+};
+
+void location::set_CgiPass(const std::string& pass)
+{
+	m_cgi_pass = pass;
+};
+
+void location::set_AuthBasic(const std::string& state)
+{
+	m_auth_basic = state;
+};
+
+void location::set_AuthUserFile(const std::string& file)
+{
+	m_auth_user_file = file;
+};
+
+
+// ******************************************************
+//                   Status & add
+// ******************************************************
+void location::add_AllowedMethod(const std::string& method)
+{
+	m_allowed_methods.push_back(method);
+};
+
+void location::add_CgiExtension(const std::string& ext, const std::string& path)
+{
+	m_cgi_extensions.insert(std::make_pair(ext, path));
+};
+
+void location::addIndexFile(const std::string& f)
+{
+	m_index_files.push_back(f);
+};
+
+bool location::is_AutoindexEnabled() const
+{
+	return m_autoindex;
+};
+
+bool location::is_UploadEnabled() const
+{
+	return m_upload_enable;
+};
+
+
+// ******************************************************
+//                       Getter
+// ******************************************************
+const std::string& location::get_Path() const
+{
+	return m_path;
+};
+
+const std::string& location::get_Root() const
+{
+	return m_root;
+};
+
+const std::vector<std::string>& location::get_IndexFiles() const
+{
+	return m_index_files;
+};
+
+const std::vector<std::string>& location::get_AllowedMethods() const
+{
+	return m_allowed_methods;
+};
+
+const std::string& location::get_UploadStore() const
+{
+	return m_upload_store;
+};
+
+const std::map<std::string, std::string>& location::get_CgiExtensions() const
+{
+	return m_cgi_extensions;
+};
+
+const std::string& location::get_CgiPass() const
+{
+	return m_cgi_pass;
+};
+
+const std::string& location::get_AuthBasic() const
+{
+	return m_auth_basic;
+};
+
+const std::string& location::get_AuthUserFile() const
+{
+	return m_auth_user_file;
 };

@@ -5,49 +5,64 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2025/10/29 14:33:37 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/29 14:38:25 by daeunki2         ###   ########.fr       */
+/*   Created: 2025/11/02 15:40:08 by daeunki2          #+#    #+#             */
+/*   Updated: 2025/11/02 16:36:39 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-/*============================================================================*/
-/*              store important information of a browser                 */
-/*============================================================================*/
-
-
 #ifndef CLIENT_HPP
-#define CLIENT_HPP
+# define CLIENT_HPP
+
+# include <iostream>
+# include <string>
+# include <unistd.h>     // close
+# include <poll.h>       // pollfd 구조체 갱신용
+#include <unistd.h>     // read, write, close
+#include <sys/socket.h> // read, write
+#include <errno.h>      // errno, EAGAIN, EWOULDBLOCK
+#include <cstring>      // strerror, memset
+#include <stdexcept>
 
 #include "request_parser.hpp" 
-#include <sys/socket.h>
-#include <unistd.h>
-#include <iostream>
-#include <algorithm>
-#include <sstream>
-#include <cerrno>
+# include "HttpResponse.hpp"  // (추후 구현될) 응답 클래스를 포함
 
-enum clientStatus
-{
-        RECEIVING_REQUEST,  // Receiving request data and parsing (waiting for POLLIN)
-        REQUEST_READY,      // Request parsing complete, ready for response processing
-        SENDING_RESPONSE,   // Sending response data (waiting for POLLOUT)
-        CLOSE_CONNECTION    // Connection scheduled for closure
-};
+# define READ_BUFFER_SIZE 4096 
+
+// 전방 선언
+class Server;
+class HttpResponse; 
 
 class client
 {
-	private:
-    int             m_fd;               // Client socket file descriptor
-    RequestParser   m_request_parser;   // Request parsing object
-    clientStatus    m_status;           // Current state of the client
-	ResponseBuilder m_response_builder; //
-    
-
 	public:
-    Client(int fd);
-    Client(const Client& src);
-    Client& operator=(const Client& src);
-    ~Client();
+	enum ClientState 
+	{
+		WAITING_FOR_REQUEST, 
+		READING_BODY,        
+		WRITING_RESPONSE,   
+		CLOSED              
+	};
+	
+	private:
+	int                 m_fd;//form sicket
+	ClientState         m_state;
+	char                m_read_buffer[READ_BUFFER_SIZE];
+
+	RequestParser		m_parser;
+	HttpResponse        m_response;
+	const Server&       m_server_config;
+    client(const client& other);
+    client& operator=(const client& other);
+
+public:
+    client(int fd, const Server& config);
+    
+    ~client();
+    ClientState handleRead();
+    ClientState handleWrite();
+    void        updatePollEvents(struct pollfd& pfd);
+    int         getFd() const;
+    ClientState getState() const;
 };
 
 #endif

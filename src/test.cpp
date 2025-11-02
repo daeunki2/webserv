@@ -3,13 +3,14 @@
 /*                                                        :::      ::::::::   */
 /*   test.cpp                                           :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
+/*   By: locherif <locherif@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/13 18:14:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/25 21:17:15 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/02 02:15:18 by locherif         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+#include "config_parser/parsing.hpp"
 #include<iostream>
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -19,11 +20,15 @@
 #include <cstdio>
 #include <string> // std::string을 사용하기 위해 추가
 
-int main()
+Config parser(int ac, char **av);
+
+int main(int ac, char **av)
 {
+    Config conf = parser(ac, av);
+    std::cout << "heeeeere\n";
     int server_fd, client_fd;
     struct sockaddr_in address;
-    int addrlen = sizeof(address);
+    int addrlen = sizeof(address); 
     const int PORT = 8080;
     int opt = 1;
 

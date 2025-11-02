@@ -1,15 +1,5 @@
-/*
-config rulls
-key word shold be key word. 
-list of key wird.
-{}
-no comment
 
-*/
-# Exemple complet d’un fichier Webserv
-# (les commentaires commencent par #)
-
-server {
+ server {
     listen 8080;
     server_name localhost;
     root ./www/default;
@@ -19,7 +9,7 @@ server {
     client_max_body_size 5M;
 
     location / {
-        autoindex off;
+        autoindex off; /*gerery
     }
 
     location /images {
@@ -62,14 +52,3 @@ server {
         cgi_pass ./scripts/api.py;
     }
 }
-
-config file define the basic setting of server.
-in main we have these line, and we need to use config file to initiation. 
-int server_fd, client_fd;
-struct sockaddr_in address;
-int addrlen = sizeof(address);
-const int PORT = 8080;
-
-address.sin_family = AF_INET;
-address.sin_addr.s_addr = INADDR_ANY;
-address.sin_port = htons(PORT);

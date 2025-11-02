@@ -3,10 +3,10 @@
 /*                                                        :::      ::::::::   */
 /*   config_parser.hpp                                  :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
+/*   By: locherif <locherif@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/23 19:13:17 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/10/28 12:59:32 by locherif         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,9 +18,57 @@
 #ifndef CONFIG_PARSER_HPP
 #define CONFIG_PARSER_HPP
 
-class config_parser
+#include <iostream>
+#include <string>
+#include <vector>
+
+class location
 {
+	private : 
+	std::string destination;// location /destination {
+	std::string path;
+	std::vector<std::string> index; //  index files
+	std::string root;
+	std::string upload_store;
+	std::string cgi_ext;
+	std::string cgi_pass;
+	std::string auto_user_file;
+	bool auto_basic;
+	bool autoindex;
+	bool upload_enable;
+	bool m_get; // allow_methood
+	bool m_post; // allow_methood
+	bool m_delete; // allow_methood
+
+	public :
+	location();
+	location(const location& src);
+	~location();
+	location& operator=(const location& src);
 	
+	//getters
+	std::string 		get_destination();
+	std::string 		get_path();
+	std::string 		get_root();
+	std::string 		get_upload_store();
+	std::string 		get_cgi_ext();
+	std::string 		get_cgi_pass();
+	std::string 		get_auto_user_file();
+	std::vector<std::string> 	get_index();
+	bool				get_on_or_off(std::string flag);
+	bool				get_method(std::string flag);
+
+	//setters
+	void			set_destination(std::string input);
+	void			set_path(std::string input);
+	void			set_root(std::string input);
+	void			set_upload_store(std::string input);
+	void			set_cgi_ext(std::string input);
+	void			set_cgi_pass(std::string input);
+	void			set_auto_user_file(std::string input);
+	void			set_index(std::vector<std::string> input);
+	void			set_method(std::string flag, bool status);
+	void			set_on_or_off(std::string flag, bool status);
 };
 
 #endif

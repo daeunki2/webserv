@@ -14,6 +14,29 @@
 
 
 // ******************************************************
+//	               Constructer 
+// ******************************************************
+socket_builder::socket_builder(const socket_builder& other)
+{
+
+};
+
+socket_builder& socket_builder::operator=(const socket_builder& other)
+{
+
+};
+
+socket_builder::socket_builder(int port, const std::string& ip)
+{
+
+};
+
+socket_builder::~socket_builder()
+{
+
+};
+
+// ******************************************************
 //	               Private Builder Steps
 // ******************************************************
 

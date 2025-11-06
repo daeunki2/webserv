@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/02 15:57:03 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/06 11:25:51 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -30,6 +30,7 @@
 class http_request;
 
 
+	
 class RequestParser
 {
 	private:
@@ -54,7 +55,7 @@ class RequestParser
 
 	
 	public:
-	enum ParsingState
+		enum ParsingState
 	{
 	REQUEST_LINE,
 	HEADERS,

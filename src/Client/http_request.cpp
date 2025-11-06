@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/23 19:13:03 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/27 13:52:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/06 12:08:20 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,7 +19,6 @@
 std::string http_request::to_lower(const std::string& str)
 {
 std::string result;
-    // 결과 문자열의 크기를 미리 예약하여 성능 향상 (선택 사항)
     result.reserve(str.size()); 
     for(size_t i = 0; i < str.size(); ++i)
     {

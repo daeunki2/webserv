@@ -1,100 +1,101 @@
-#include "request_parser.hpp" 
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
-#include <cstring>
-#include <iostream>
 
-#define PORT 8080
-#define BUFFER_SIZE 4096
+// #include "request_parser.hpp" 
+// #include <sys/socket.h>
+// #include <netinet/in.h>
+// #include <unistd.h>
+// #include <cstring>
+// #include <iostream>
+
+// #define PORT 8080
+// #define BUFFER_SIZE 4096
 
 
-void receive_and_parse_request() {
-    int server_fd, new_socket;
-    struct sockaddr_in address;
-    int addrlen = sizeof(address);
-    char buffer[BUFFER_SIZE] = {0};
+// void receive_and_parse_request() {
+//     int server_fd, new_socket;
+//     struct sockaddr_in address;
+//     int addrlen = sizeof(address);
+//     char buffer[BUFFER_SIZE] = {0};
     
-    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
+//     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+//         perror("socket failed");
+//         exit(EXIT_FAILURE);
+//     }
     
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(PORT);
+//     address.sin_family = AF_INET;
+//     address.sin_addr.s_addr = INADDR_ANY;
+//     address.sin_port = htons(PORT);
     
-    // 2. 소켓에 주소 바인딩
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
-        exit(EXIT_FAILURE);
-    }
+//     // 2. 소켓에 주소 바인딩
+//     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+//         perror("bind failed");
+//         exit(EXIT_FAILURE);
+//     }
     
-    // 3. 연결 대기 (Listen)
-    if (listen(server_fd, 3) < 0) {
-        perror("listen");
-        exit(EXIT_FAILURE);
-    }
+//     // 3. 연결 대기 (Listen)
+//     if (listen(server_fd, 3) < 0) {
+//         perror("listen");
+//         exit(EXIT_FAILURE);
+//     }
     
-    std::cout << "웹 서버 대기 중... (포트 " << PORT << ")" << std::endl;
+//     std::cout << "웹 서버 대기 중... (포트 " << PORT << ")" << std::endl;
 
-    // 4. 연결 수락 (Accept)
-    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
+//     // 4. 연결 수락 (Accept)
+//     if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+//         perror("accept");
+//         exit(EXIT_FAILURE);
+//     }
 
-    std::cout << "클라이언트 연결 수락. 요청 수신 중..." << std::endl;
+//     std::cout << "클라이언트 연결 수락. 요청 수신 중..." << std::endl;
 
-    RequestParser parser;
-    ssize_t valread;
+//     RequestParser parser;
+//     ssize_t valread;
     
-    // 5. 데이터 수신 및 파싱 루프
-    while (parser.get_state() != PARSING_COMPLETED && parser.get_state() != PARSING_ERROR) {
-        memset(buffer, 0, BUFFER_SIZE);
+//     // 5. 데이터 수신 및 파싱 루프
+//     while (parser.get_state() != PARSING_COMPLETED && parser.get_state() != PARSING_ERROR) {
+//         memset(buffer, 0, BUFFER_SIZE);
         
-        // 데이터 수신 (논블로킹이 아닌 블로킹 read를 사용하여 단순화)
-        // 실제 웹서버에서는 poll/select를 사용해야 합니다.
-        valread = read(new_socket, buffer, BUFFER_SIZE);
+//         // 데이터 수신 (논블로킹이 아닌 블로킹 read를 사용하여 단순화)
+//         // 실제 웹서버에서는 poll/select를 사용해야 합니다.
+//         valread = read(new_socket, buffer, BUFFER_SIZE);
         
-        if (valread <= 0) {
-            // 연결 종료 또는 오류
-            break;
-        }
+//         if (valread <= 0) {
+//             // 연결 종료 또는 오류
+//             break;
+//         }
 
-        // 수신된 데이터를 파서에 전달
-        ParsingState current_state = parser.load_data(buffer, valread);
+//         // 수신된 데이터를 파서에 전달
+//         ParsingState current_state = parser.load_data(buffer, valread);
 
-        std::cout << "  ▶ " << valread << " bytes 수신, 현재 상태: " << current_state << std::endl;
+//         std::cout << "  ▶ " << valread << " bytes 수신, 현재 상태: " << current_state << std::endl;
         
-        // 파싱 오류 발생 시 중단
-        if (current_state == PARSING_ERROR) {
-            std::cerr << "❌ 파싱 오류 발생! (상태 6)" << std::endl;
-            break;
-        }
-    }
+//         // 파싱 오류 발생 시 중단
+//         if (current_state == PARSING_ERROR) {
+//             std::cerr << "❌ 파싱 오류 발생! (상태 6)" << std::endl;
+//             break;
+//         }
+//     }
 
-    // 6. 결과 출력
-    if (parser.get_state() == PARSING_COMPLETED) {
-        parser.get_request().print_parsed_data("실제 브라우저 요청");
+//     // 6. 결과 출력
+//     if (parser.get_state() == PARSING_COMPLETED) {
+//         parser.get_request().print_parsed_data("실제 브라우저 요청");
 
-        // 7. 간단한 응답 전송 (필수 아님, 요청 성공 확인용)
-        const char *hello = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!";
-        send(new_socket, hello, strlen(hello), 0);
-    } else {
-        std::cerr << "⚠️ 요청 처리 미완료." << std::endl;
-    }
+//         // 7. 간단한 응답 전송 (필수 아님, 요청 성공 확인용)
+//         const char *hello = "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 12\r\n\r\nHello World!";
+//         send(new_socket, hello, strlen(hello), 0);
+//     } else {
+//         std::cerr << "⚠️ 요청 처리 미완료." << std::endl;
+//     }
 
-    // 8. 소켓 정리
-    close(new_socket);
-    close(server_fd);
-}
+//     // 8. 소켓 정리
+//     close(new_socket);
+//     close(server_fd);
+// }
 
-int main() {
-    // 기존 s_test.cpp의 테스트 코드 대신 실제 서버 로직 실행
-    receive_and_parse_request();
-    return 0;
-}
+// int main() {
+//     // 기존 s_test.cpp의 테스트 코드 대신 실제 서버 로직 실행
+//     receive_and_parse_request();
+//     return 0;
+// }
 
 
 // // main.cpp

@@ -6,28 +6,42 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/25 20:09:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/03 11:55:07 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/05 09:43:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-// #include "server_manager"
+#include "config_parser.hpp"
+#include "server_manager.hpp"
 
-int main (int ac, char **av, char **envp)
+int main(int ac, char **av)
 {
-	int code = 0;
-	const char *config;
-	if (ac == 2 || ac == 1)
+	if (ac == 1 || ac == 2)
 	{
-		if (ac == 1)
-			config = "";
-		else
-			config = av[1];
-		servermanager engine(config);
+		try
+		{
+			std::string config_filename;
+			config_parser config;
+			server_manager webserv;
+
+			if (ac == 1)
+				config_filename = "default.config";
+			else
+				config_filename = av[1];
+			config(config_filename);
+			wenserv(config.get_servers());
+			webserv.run();
+		}
+		catch(const std::exception& e)
+		{
+			std::cerr << e.what() << '\n';
+			return 1;
+		}
+		
 	}
 	else
 	{
-		std::cout << "USAGE : ./webserv configfile or ./webserv"
-		code = 1;
+		std::cout << "Error: wrong arguments" << std::endl;
+		return 1;
 	}
-	return code;
-};
+	return 0;
+}

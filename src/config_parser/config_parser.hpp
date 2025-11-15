@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/30 13:58:25 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/14 11:42:15 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,48 +14,50 @@
 /*    take the config file, parse it, and store in server or location class   */
 /*============================================================================*/
 
+#ifndef CONFIG_PARSER_HPP
+#define CONFIG_PARSER_HPP
 
-#ifndef CONFIGPARSER_HPP
-# define CONFIGPARSER_HPP
+#include <string>
+#include <vector>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
 
-# include "ServerConfig.hpp"
-# include <string>
-# include <vector>
-# include <fstream>
-# include <sstream>
-# include <stdexcept>
-# include <iostream>
+#include "server.hpp"
+#include "location.hpp"
+#include "../libft/libft.hpp"
 
-class ConfigParser
+class config_parser
 {
-	private:
-	std::vector<server>   _servers;
-	std::vector<std::string>    _tokens;
-	size_t                      _current_index;
+private:
+    std::vector<server>      _servers;
+    std::vector<std::string> tokens;
+    std::string              file_name;
 
-	void                        _tokenize(const std::string& filename);
-	std::string                 _getNextToken();
-	std::string                 _peekNextToken() const;
-	void                        _expectToken(const std::string& expected);
-	long                        _parseSize(const std::string& size_str); // 5M -> bytes 변환
+    // 내부 유틸리티
+    std::vector<std::string> read_file_lines() const;
+    void                     tokenize(const std::vector<std::string> &lines);
 
-	ServerConfig                _parseServerBlock();
-	LocationConfig              _parseLocationBlock(ServerConfig& current_server);
+    void parse_server_block(size_t &i);
+    void parse_location_block(server &sv, size_t &i);
 
-	void                        _parseServerDirective(ServerConfig& server);
-	void                        _parseLocationDirective(LocationConfig& location);
+    void expect(const std::string &token, const std::string &expected) const;
 
-	void                        _parseIndex(std::vector<std::string>& index_files);
+public:
+    config_parser();
+	config_parser(const std::string filename);
+    config_parser(const config_parser &other);
+    config_parser& operator=(const config_parser &other);
+    ~config_parser();
 
-	public:
-	ConfigParser();
-	~ConfigParser();
+    // ✔ 메인 파싱 함수
+    void parse(const std::string &filename);
 
-	void parse(const std::string& filename);
-	const std::vector<ServerConfig>& getServers() const;
+    const std::vector<server>& get_servers() const;
 };
 
 #endif
+
 
 /*
 logic

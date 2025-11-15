@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/27 16:46:11 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/28 16:46:43 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/14 11:39:48 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,4 +43,14 @@ std::string line_extracter(std::string str, std::string separator)
     str.erase(0, position + separator.size());
     
     return line;
+}
+
+std::string trim(const std::string &s)
+{
+    size_t start = s.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos)
+        return "";
+
+    size_t end = s.find_last_not_of(" \t\r\n");
+    return s.substr(start, end - start + 1);
 }

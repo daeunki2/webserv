@@ -19,7 +19,7 @@
 Server_Manager::Server_Manager() {}
 
 Server_Manager::Server_Manager(const std::vector<Server>& servers)
-: servers(servers) 
+: servers(servers)
 {
     init_sockets();
 }

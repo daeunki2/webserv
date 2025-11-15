@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/27 16:47:06 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/28 13:05:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/14 11:39:42 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,8 @@
 
 std::vector<std::string> split(const std::string &str, char delimiter);
 std::string line_extracter(std::string separator);
+std::string trim(const std::string &s);
+
 
 
 #endif 

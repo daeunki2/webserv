@@ -6,66 +6,86 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/29 14:16:11 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/06 10:53:30 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/19 13:39:48 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 /*============================================================================*/
 /*              store important information from raw request                  */
 /*============================================================================*/
-
 #ifndef SERVER_MANAGER_HPP
 # define SERVER_MANAGER_HPP
 
-#include <vector>
-#include <map>
-#include <poll.h>
-#include <fcntl.h>
-#include <cerrno>
-#include <iostream>
-#include <unistd.h>
-#include <exception>
-#include <string>
-#include <cstring>
-#include <netinet/in.h>
-#include <sys/socket.h>
-#include <algorithm>
-#include <ctime>
-#include "Server.hpp" 
-#include "Client.hpp" 
-#include "error_control.hpp" 
+# include <vector>
+# include <map>
+# include <poll.h>
+# include <fcntl.h>
+# include <cerrno>
+# include <iostream>
+# include <unistd.h>
+# include <string>
+# include <cstring>
+# include <algorithm>
+# include <ctime>
+# include <netinet/in.h>
+# include <sys/socket.h>
 
-#define RECV_BUFFER_SIZE 65536
-#define IDLE_TIMEOUT_SECONDS 60
+# include "Server.hpp"
+# include "Client.hpp"
+# include "Logger.hpp"
+# include "Error.hpp"
+# include "Utils.hpp"
+
+# ifndef RECV_BUFFER_SIZE
+#  define RECV_BUFFER_SIZE 65536
+# endif
+
+# ifndef IDLE_TIMEOUT_SECONDS
+#  define IDLE_TIMEOUT_SECONDS 60
+# endif
+
+# ifndef TIMEOUT_MS
+#  define TIMEOUT_MS 1000   // poll timeout 1s
+# endif
 
 class Server_Manager
 {
 private:
-    std::vector<Server> servers;                 
-    std::vector<int> listening_fds;              
-    std::map<int, Server*> fd_to_server;         
-    std::map<int, Client> clients;               
-    std::vector<struct pollfd> poll_fds;         
-
-    void init_sockets();                           
-    void set_fd_non_blocking(int fd);
-    void check_idle_clients();
-    void accept_new_client(int server_fd);
-    
-    bool receive_request(int client_fd);
-    bool send_response(int client_fd);
-    
-    void close_connection(int client_fd);
-
-    bool is_listening_fd(int fd) const;
-    Server* get_server_by_fd(int fd);
+    std::vector<Server>              _servers;        // config에서 읽어온 서버들
+    std::vector<int>                 _listening_fds;  // listen 소켓들
+    std::map<int, Server*>           _fd_to_server;   // listen fd -> Server*
+    std::map<int, Client>            _clients;        // client fd -> Client
+    std::vector<struct pollfd>       _poll_fds;
 
 public:
+    /* Canonical */
     Server_Manager();
-    explicit Server_Manager(const std::vector<Server>& servers);
+    Server_Manager(const std::vector<Server> &servers);
+    Server_Manager(const Server_Manager &o);
+    Server_Manager &operator=(const Server_Manager &o);
     ~Server_Manager();
 
+    /* 메인 루프 한 턴 */
     void run();
+
+private:
+    /* init */
+    void init_sockets();
+    void set_fd_non_blocking(int fd);
+
+    /* 유틸 */
+    bool   is_listening_fd(int fd) const;
+    Server *get_server_by_fd(int fd);
+    void   update_poll_events(int fd, short events);
+
+    /* client 관리 */
+    void check_idle_clients();
+    void accept_new_client(int server_fd);
+    void close_connection(int client_fd);
+
+    /* I/O 처리 */
+    bool receive_request(int client_fd);  // true → 연결 종료됨
+    bool send_response(int client_fd);    // true → 연결 종료됨
 };
 
 #endif

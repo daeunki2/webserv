@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:01 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/30 14:20:18 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/19 13:11:01 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,51 +15,47 @@
 /*============================================================================*/
 
 #ifndef SERVER_HPP
-# define SERVER_HPP
+#define SERVER_HPP
 
-# include "location.hpp"
-# include <string>
-# include <vector>
-# include <map>
-# include <iostream>
+#include <string>
+#include <vector>
+#include "Location.hpp"
 
-class server
+class Server
 {
 private:
-    int                             m_port;
-    std::string                     m_host;
-    std::string                     m_server_name;
-    std::string                     m_root;
-    std::vector<std::string>        m_index_files;
-    std::map<int, std::string>      m_error_pages; // code -> path
-    long                            m_client_max_body_size; // bytes
-    std::vector<location>     m_locations;
+    int _port;
+    std::string _serverName;
+    std::string _root;
+    size_t _clientMaxBodySize;
+
+    std::vector<Location> _locations;
+    std::vector<std::pair<int, std::string> > _errorPages; // code → file
 
 public:
-    server();
-	server(const server& erc);
-	server& operator&(const server& src);
-    ~server();
+    /* Canonical form */
+    Server();
+    Server(const Server &o);
+    Server &operator=(const Server &o);
+    ~Server();
 
-    void set_Port(int p);
-    void set_Host(const std::string& h);
-    void set_ServerName(const std::string& name);
-    void set_Root(const std::string& r);
-    void addIndexFile(const std::string& f);
-    void set_ErrorPage(int code, const std::string& path);
-    void set_ClientMaxBodySize(long size);
-    void addLocation(const LocationConfig& loc);
-    
-    void set_Listen(const std::string& val); 
+    /* Setters */
+    void setPort(int p);
+    void setServerName(const std::string &n);
+    void setRoot(const std::string &r);
+    void setClientMaxBodySize(size_t size);
 
-    int get_Port() const;
-    const std::string& get_Host() const;
-    const std::string& get_ServerName() const;
-    const std::string& get_Root() const;
-    const std::vector<std::string>& get_IndexFiles() const;
-    const std::map<int, std::string>& get_ErrorPages() const;
-    long get_ClientMaxBodySize() const;
-    const std::vector<LocationConfig>& get_Locations() const;
+    void addLocation(const Location &loc);
+    void addErrorPage(int code, const std::string &file);
+
+    /* Getters */
+    int getPort() const;
+    const std::string &getServerName() const;
+    const std::string &getRoot() const;
+    size_t getClientMaxBodySize() const;
+
+    const std::vector<Location> &getLocations() const;
+    const std::vector<std::pair<int, std::string> > &getErrorPages() const;
 };
 
 #endif

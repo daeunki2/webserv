@@ -6,7 +6,7 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/11/06 11:57:02 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/11/19 14:43:30 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -18,11 +18,14 @@ OBJ_DIR = obj
 SRC_DIR = src
 INC_DIR = inc
 
-SRCS = $(SRC_DIR)/request_parser/s_test.cpp \
-        $(SRC_DIR)/request_parser/http_request.cpp \
-        $(SRC_DIR)/request_parser/request_parser.cpp \
-		$(SRC_DIR)/Client/Client.cpp \
-		$(SRC_DIR)/Server_Manager/Server_Manager.cpp \
+
+SRCS = $(SRC_DIR)/main.cpp \
+		$(SRC_DIR)/config_parser/config_parser.cpp \
+		$(SRC_DIR)/config_parser/Location.cpp \
+		$(SRC_DIR)/config_parser/Server.cpp \
+		$(SRC_DIR)/etc/Error.cpp \
+		$(SRC_DIR)/etc/Logger.cpp \
+		$(SRC_DIR)/etc/Utils.cpp \
         
         
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)

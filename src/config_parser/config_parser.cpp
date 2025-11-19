@@ -6,77 +6,283 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/14 11:44:26 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/19 14:44:41 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "config_parser.hpp"
 
-// ******************************************************
-//            constructer 
-// ******************************************************
+ConfigParser::ConfigParser() : _i(0)
+{}
 
-config_parser::config_parser()
-{
-}
+ConfigParser::ConfigParser(const ConfigParser &o)
+: _lines(o._lines), _tokens(o._tokens), _i(o._i)
+{}
 
-config_parser::config_parser(const std::string filename)
-:file_name(filename);
+ConfigParser &ConfigParser::operator=(const ConfigParser &o)
 {
-}
-
-config_parser::config_parser(const config_parser &other)
-{
-    *this = other;
-}
-
-config_parser& config_parser::operator=(const config_parser &other)
-{
-    if (this != &other)
+    if (this != &o)
     {
-        this->_servers  = other._servers;
-        this->tokens    = other.tokens;
-        this->file_name = other.file_name;
+        _lines = o._lines;
+        _tokens = o._tokens;
+        _i = o._i;
     }
     return *this;
 }
 
-config_parser::~config_parser()
+ConfigParser::~ConfigParser()
+{}
+
+/****************************************
+ * PARSE ENTRY
+ ****************************************/
+
+std::vector<Server> ConfigParser::parse(const std::string &path)
 {
-}
-
-
-// ******************************************************
-//            			helper
-// ******************************************************
-
-std::vector<std::string> config_parser::read_file_lines() const
-{
-    std::vector<std::string> lines;
-    std::ifstream file(file_name.c_str());
-
+    std::ifstream file(path.c_str());
     if (!file.is_open())
-    {
-        std::cerr << "Error: could not open file " << file_name << std::endl;
-        return lines;
-    }
+        throw Error("Cannot open config: " + path, __FILE__, __LINE__);
+
+    Logger::info("Loading config: " + path);
 
     std::string line;
     while (std::getline(file, line))
+        _lines.push_back(line);
+
+    tokenize();
+
+    std::vector<Server> servers;
+
+    while (hasNext())
     {
-        if (!line.empty())
-            lines.push_back(line);
+        std::string t = peek();
+        if (t == "server")
+            parseServerBlock(servers);
+        else
+            throw Error("Unexpected token: " + t, __FILE__, __LINE__);
     }
 
-    file.close();
-    return lines;
+    return servers;
 }
 
-void	config_parser::tokenize(const std::vector<std::string> &lines)
+/****************************************
+ * TOKENIZER
+ ****************************************/
+
+void ConfigParser::tokenize()
 {
-	
+    for (size_t i = 0; i < _lines.size(); i++)
+    {
+        std::string l = trim(_lines[i]);
+        if (l.empty() || l[0] == '#')
+            continue;
+
+        std::string token;
+        for (size_t j = 0; j < l.size(); j++)
+        {
+            char c = l[j];
+
+            if (c == '{' || c == '}' || c == ';')
+            {
+                if (!token.empty())
+                {
+                    _tokens.push_back(token);
+                    token.clear();
+                }
+                _tokens.push_back(std::string(1, c));
+            }
+            else if (std::isspace(c))
+            {
+                if (!token.empty())
+                {
+                    _tokens.push_back(token);
+                    token.clear();
+                }
+            }
+            else
+                token += c;
+        }
+        if (!token.empty())
+            _tokens.push_back(token);
+    }
+    _i = 0;
 }
 
-// ******************************************************
-//            			main
-// ******************************************************
+bool ConfigParser::hasNext()
+{ return _i < _tokens.size(); }
+
+const std::string &ConfigParser::peek()
+{
+    if (!hasNext())
+        throw Error("Unexpected EOF", __FILE__, __LINE__);
+    return _tokens[_i];
+}
+
+const std::string &ConfigParser::next()
+{
+    const std::string &t = peek();
+    _i++;
+    return t;
+}
+
+void ConfigParser::expect(const std::string &t)
+{
+    if (!hasNext() || next() != t)
+        throw Error("Expected '" + t + "'", __FILE__, __LINE__);
+}
+
+bool ConfigParser::consume(const std::string &t)
+{
+    if (hasNext() && peek() == t)
+    {
+        _i++;
+        return true;
+    }
+    return false;
+}
+
+/****************************************
+ * SERVER BLOCK
+ ****************************************/
+
+void ConfigParser::parseServerBlock(std::vector<Server> &servers)
+{
+    expect("server");
+    expect("{");
+
+    Server s;
+
+    while (hasNext())
+    {
+        const std::string &t = peek();
+
+        if (t == "}")
+        {
+            expect("}");
+            servers.push_back(s);
+            return;
+        }
+        else if (t == "listen")
+        {
+            next();
+            std::string p = next();
+            expect(";");
+            if (!isNumber(p))
+                throw Error("Invalid port: " + p, __FILE__, __LINE__);
+            s.setPort(toInt(p));
+        }
+        else if (t == "server_name")
+        {
+            next();
+            s.setServerName(next());
+            expect(";");
+        }
+        else if (t == "root")
+        {
+            next();
+            s.setRoot(next());
+            expect(";");
+        }
+        else if (t == "client_max_body_size")
+        {
+            next();
+            std::string size = next();
+            expect(";");
+            if (!isNumber(size))
+                throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
+            s.setClientMaxBodySize(toInt(size));
+        }
+        else if (t == "error_page")
+        {
+            next();
+            std::string code = next();
+            std::string path = next();
+            expect(";");
+            if (!isNumber(code))
+                throw Error("Invalid error code", __FILE__, __LINE__);
+            s.addErrorPage(toInt(code), path);
+        }
+        else if (t == "location")
+            parseLocationBlock(s);
+        else
+            throw Error("Unexpected token inside server: " + t, __FILE__, __LINE__);
+    }
+}
+
+/****************************************
+ * LOCATION BLOCK
+ ****************************************/
+
+void ConfigParser::parseLocationBlock(Server &srv)
+{
+    expect("location");
+
+    std::string path = next();
+    Location loc(path);
+
+    expect("{");
+
+    while (true)
+    {
+        const std::string &t = peek();
+
+        if (t == "}")
+        {
+            expect("}");
+            srv.addLocation(loc);
+            return;
+        }
+        else if (t == "root")
+        {
+            next();
+            loc.setRoot(next());
+            expect(";");
+        }
+        else if (t == "index")
+        {
+            next();
+            loc.setIndex(next());
+            expect(";");
+        }
+        else if (t == "autoindex")
+        {
+            next();
+            std::string v = next();
+            expect(";");
+            loc.setAutoindex(v == "on");
+        }
+        else if (t == "upload")
+        {
+            next();
+            loc.setUploadPath(next());
+            expect(";");
+        }
+        else if (t == "allowed_methods")
+        {
+            next();
+            while (hasNext() && peek() != ";")
+                loc.addMethod(next());
+            expect(";");
+        }
+        else if (t == "return")
+        {
+            next();
+            std::string code = next();
+            std::string url = next();
+            expect(";");
+            if (!isNumber(code))
+                throw Error("Invalid redirect code", __FILE__, __LINE__);
+            loc.setRedirect(toInt(code), url);
+        }
+        else if (t == "cgi")
+        {
+            next();
+            std::string ext = next();
+            std::string path = next();
+            expect(";");
+            loc.setCgi(ext, path);
+        }
+        else
+            throw Error("Unexpected token inside location: " + t, __FILE__, __LINE__);
+    }
+}

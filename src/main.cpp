@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/25 20:09:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:17:12 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/19 14:54:27 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,8 +14,8 @@
 #include "../src/config_parser/config_parser.hpp"
 #include "../src/config_parser/Server.hpp"
 #include "../src/config_parser/Location.hpp"
-#include "../src/libft/Logger.hpp"
-#include "../src/libft/Error.hpp"
+#include "../src/etc/Logger.hpp"
+#include "../src/etc/Error.hpp"
 
 
 static void printLocationInfo(const Location &loc)

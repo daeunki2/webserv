@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:18:27 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/19 14:54:17 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,9 +21,9 @@
 #include <fstream>
 #include "Server.hpp"
 #include "Location.hpp"
-#include "../libft/Logger.hpp"
-#include "../libft/Error.hpp"
-#include "../libft/Utils.hpp"
+#include "../etc/Logger.hpp"
+#include "../etc/Error.hpp"
+#include "../etc/Utils.hpp"
 
 
 class ConfigParser

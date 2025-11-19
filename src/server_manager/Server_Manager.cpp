@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 14:47:07 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/19 14:53:06 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,12 +60,10 @@ void Server_Manager::set_fd_non_blocking(int fd)
 {
     int flags = fcntl(fd, F_GETFL, 0);
     if (flags == -1)
-        throw Error("fcntl(F_GETFL) failed: " + std::string(strerror(errno)),
-                    __FILE__, __LINE__);
+        throw Error("fcntl(F_GETFL) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
 
     if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
-        throw Error("fcntl(F_SETFL, O_NONBLOCK) failed: " + std::string(strerror(errno)),
-                    __FILE__, __LINE__);
+        throw Error("fcntl(F_SETFL, O_NONBLOCK) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
 }
 
 void Server_Manager::init_sockets()
@@ -97,16 +95,14 @@ void Server_Manager::init_sockets()
 
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
-            std::string msg = "bind() failed on port " +
-                              toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
+            std::string msg = "bind() failed on port " + toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
             close(fd);
             throw Error(msg, __FILE__, __LINE__);
         }
 
         if (listen(fd, SOMAXCONN) < 0)
         {
-            std::string msg = "listen() failed on port " +
-                              toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
+            std::string msg = "listen() failed on port " + toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
             close(fd);
             throw Error(msg, __FILE__, __LINE__);
         }
@@ -169,8 +165,7 @@ void Server_Manager::close_connection(int client_fd)
         _clients.erase(it);
     }
 
-    for (std::vector<struct pollfd>::iterator p = _poll_fds.begin();
-         p != _poll_fds.end(); ++p)
+    for (std::vector<struct pollfd>::iterator p = _poll_fds.begin(); p != _poll_fds.end(); ++p)
     {
         if (p->fd == client_fd)
         {
@@ -180,25 +175,22 @@ void Server_Manager::close_connection(int client_fd)
     }
 
     if (close(client_fd) < 0)
-        Logger::error("close() failed for FD " + toString(client_fd) +
-                      ": " + std::string(strerror(errno)));
+        Logger::error("close() failed for FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
 }
 
 void Server_Manager::check_idle_clients()
 {
     time_t now = time(NULL);
 
-    for (std::map<int, Client>::iterator it = _clients.begin();
-         it != _clients.end(); )
+    for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); )
     {
         int fd = it->first;
-        time_t last = it->second.last_active_time; // Client 안에 이 필드가 있다고 가정
-
+        time_t last = it->second.last_active_time; 
         if (now - last > IDLE_TIMEOUT_SECONDS)
         {
             Logger::warn("Client FD " + toString(fd) + " timed out (idle).");
-            ++it;              // 먼저 iterator를 옮겨놓고
-            close_connection(fd); // 내부에서 _clients.erase(fd) 수행
+            ++it;
+            close_connection(fd);
         }
         else
             ++it;
@@ -220,15 +212,13 @@ void Server_Manager::accept_new_client(int server_fd)
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 return;
-            Logger::error("accept() failed on FD " + toString(server_fd) +
-                          ": " + std::string(strerror(errno)));
+            Logger::error("accept() failed on FD " + toString(server_fd) + ": " + std::string(strerror(errno)));
             return;
         }
 
         if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)
         {
-            Logger::error("fcntl(O_NONBLOCK) failed for client FD " +
-                          toString(client_fd) + ": " + std::string(strerror(errno)));
+            Logger::error("fcntl(O_NONBLOCK) failed for client FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
             close(client_fd);
             continue;
         }
@@ -236,8 +226,7 @@ void Server_Manager::accept_new_client(int server_fd)
         Server *config = get_server_by_fd(server_fd);
         if (!config)
         {
-            Logger::error("No server config found for listening FD " +
-                          toString(server_fd));
+            Logger::error("No server config found for listening FD " + toString(server_fd));
             close(client_fd);
             continue;
         }
@@ -285,11 +274,9 @@ bool Server_Manager::receive_request(int client_fd)
         if (bytes_read == 0)
             Logger::info("Client FD " + toString(client_fd) + " closed the connection.");
         else if (errno != EAGAIN && errno != EWOULDBLOCK)
-            Logger::error("recv() failed on FD " + toString(client_fd) +
-                          ": " + std::string(strerror(errno)));
-
+            Logger::error("recv() failed on FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
         close_connection(client_fd);
-        return true; // closed
+        return true;
     }
 
     client.last_active_time = time(NULL);
@@ -307,7 +294,7 @@ bool Server_Manager::receive_request(int client_fd)
         client.update_state(REQUEST_COMPLETE);
     }
 
-    return false; // keep connection
+    return false;
 }
 
 bool Server_Manager::send_response(int client_fd)
@@ -334,9 +321,8 @@ bool Server_Manager::send_response(int client_fd)
     if (bytes_sent < 0)
     {
         if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return false; // 나중에 다시 시도
-        Logger::error("send() failed on FD " + toString(client_fd) +
-                      ": " + std::string(strerror(errno)));
+            return false; 
+        Logger::error("send() failed on FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
         close_connection(client_fd);
         return true;
     }
@@ -354,7 +340,7 @@ bool Server_Manager::send_response(int client_fd)
         }
         else
         {
-            client.reset();                     // keep-alive 등
+            client.reset();
             update_poll_events(client_fd, POLLIN);
         }
     }
@@ -380,7 +366,7 @@ void Server_Manager::run()
         return;
     }
     if (ret == 0)
-        return; // timeout
+        return;
 
     for (size_t i = 0; i < _poll_fds.size(); ++i)
     {
@@ -390,7 +376,6 @@ void Server_Manager::run()
 
         int fd = pfd.fd;
 
-        // 1) 리스닝 소켓 → accept
         if (is_listening_fd(fd))
         {
             if (pfd.revents & POLLIN)
@@ -398,10 +383,8 @@ void Server_Manager::run()
             continue;
         }
 
-        // 2) 클라이언트 소켓
         bool closed = false;
 
-        // 에러/HUP
         if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
         {
             Logger::warn("poll error/hup on FD " + toString(fd));
@@ -409,14 +392,12 @@ void Server_Manager::run()
             closed = true;
         }
 
-        // 읽기
         if (!closed && (pfd.revents & POLLIN))
         {
             if (receive_request(fd))
                 closed = true;
         }
 
-        // 요청 완료 → 응답 생성
         if (!closed)
         {
             std::map<int, Client>::iterator it = _clients.find(fd);
@@ -432,14 +413,12 @@ void Server_Manager::run()
             }
         }
 
-        // 쓰기
         if (!closed && (pfd.revents & POLLOUT))
         {
             if (send_response(fd))
                 closed = true;
         }
 
-        // poll_fds에서 fd가 erase되었을 수 있으므로 인덱스 조정
         if (closed && i > 0)
             --i;
     }

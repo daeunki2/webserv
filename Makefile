@@ -6,12 +6,13 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/11/20 10:52:07 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/11/20 18:55:45 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
 CC = c++
+
 CFLAGS = -Wall -Wextra -Werror -std=c++98 \
 		-I $(SRC_DIR)/config_parser \
 		-I $(SRC_DIR)/etc \

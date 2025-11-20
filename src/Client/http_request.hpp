@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/23 19:03:30 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 10:23:08 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 19:27:39 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,53 +25,69 @@ Header	Connection	연결을 유지(keep-alive)할지 요청 처리 후 즉시 �
 */
 
 #ifndef HTTP_REQUEST_HPP
-# define HTTP_REQUEST_HPP
+#define HTTP_REQUEST_HPP
 
-# include <string>
-# include <map>
+#include <string>
+#include <map>
+#include "../etc/Utils.hpp"
 
-class HttpRequest
+class http_request
 {
-public:
-    HttpRequest();
-    HttpRequest(const HttpRequest &o);
-    HttpRequest &operator=(const HttpRequest &o);
-    ~HttpRequest();
-
-    /* setters */
-    void setMethod(const std::string &m);
-    void setUri(const std::string &u);
-    void setPath(const std::string &p);
-    void setQuery(const std::string &q);
-    void setVersion(const std::string &v);
-    void addHeader(const std::string &key, const std::string &value);
-    void setBody(const std::string &b);
-    void appendBody(const std::string &b);
-    void setKeepAlive(bool k);
-
-    /* getters */
-    const std::string &getMethod() const;
-    const std::string &getUri() const;
-    const std::string &getPath() const;
-    const std::string &getQuery() const;
-    const std::string &getVersion() const;
-    const std::map<std::string, std::string> &getHeaders() const;
-    const std::string &getBody() const;
-    bool getKeepAlive() const;
-
-    /* helpers */
-    bool hasHeader(const std::string &key) const;
-    std::string getHeader(const std::string &key) const;
-
 private:
-    std::string                           _method;
-    std::string                           _uri;
-    std::string                           _path;
-    std::string                           _query;
-    std::string                           _version;
-    std::map<std::string, std::string>    _headers;
-    std::string                           _body;
-    bool                                  _keepAlive;
+    std::string m_method;
+    std::string m_uri;
+    std::string m_path;
+    std::string m_query;
+    std::string m_version;
+
+    std::map<std::string, std::string> m_headers;
+    std::string m_body;
+
+    long long   m_content_length;
+    bool        m_has_content_length;
+    bool        m_is_chunked;
+    bool        m_keep_alive;
+
+public:
+    // Canonical form
+    http_request();
+    http_request(const http_request& other);
+    http_request& operator=(const http_request& other);
+    ~http_request();
+
+    void reset();
+
+    // Setters (used by RequestParser)
+    void set_method(const std::string& method);
+    void set_uri(const std::string& uri);
+    void set_version(const std::string& version);
+
+    void set_body(const std::string& body);
+    void append_body(const std::string& chunk);
+
+    void add_header(const std::string& name, const std::string& value);
+
+    void set_content_length(long long len);
+    void set_chunked(bool value);
+    void set_keep_alive(bool value);
+
+    // Getters (used by ResponseBuilder / others)
+    const std::string& get_method() const;
+    const std::string& get_uri() const;
+    const std::string& get_path() const;
+    const std::string& get_query() const;
+    const std::string& get_version() const;
+
+    const std::map<std::string, std::string>& get_headers() const;
+    bool has_header(const std::string& name) const;
+    std::string get_header(const std::string& name) const;
+
+    const std::string& get_body() const;
+
+    long long get_content_length() const;
+    bool has_content_length() const;
+    bool is_chunked() const;
+    bool keep_alive() const;
 };
 
 #endif

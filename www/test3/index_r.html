@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Webserv · Serveur Rouge</title>
+<style>
+    body {
+        margin: 0; padding: 0;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #4a0000, #7a1010, #550000);
+        color: #ffeaea;
+    }
+
+    header {
+        display: flex; justify-content: space-between; align-items: center;
+        padding: 18px 30px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        background: rgba(80,0,0,0.4);
+        backdrop-filter: blur(6px);
+    }
+
+    .title { font-size: 26px; font-weight: 600; color: #ffdddd; }
+
+    .lang-switch {
+        display: flex; gap: 10px;
+    }
+    .lang-switch button {
+        background: rgba(255,200,200,0.15);
+        border: 1px solid rgba(255,255,255,0.18);
+        color: #ffeded;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer; font-size: 12px;
+        transition: 0.2s;
+    }
+    .lang-switch button:hover {
+        background: rgba(255,255,255,0.28);
+    }
+
+    main { max-width: 900px; margin: 40px auto; text-align: center; padding: 0 24px; }
+
+    .card {
+        background: rgba(60,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.15);
+        padding: 32px; border-radius: 20px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.5);
+        backdrop-filter: blur(10px);
+    }
+
+    h2 { margin-top: 0; font-size: 26px; color: #ffe6e6; }
+    p { font-size: 15px; opacity: .9; }
+
+    .method-grid {
+        margin-top: 30px; display: grid; gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .method-btn {
+        padding: 16px;
+        background: rgba(255,200,200,0.10);
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #ffefef;
+        border-radius: 14px; font-size: 15px;
+        cursor: pointer; transition: 0.2s;
+    }
+    .method-btn:hover {
+        background: rgba(255,150,150,0.25);
+    }
+
+    .response-box {
+        margin-top: 30px;
+        padding: 16px;
+        background: rgba(255,200,200,0.08);
+        border: 1px solid rgba(255,255,255,0.18);
+        border-radius: 12px;
+        text-align: left;
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 13px;
+    }
+</style>
+</head>
+
+<body>
+<header>
+    <div class="title">Serveur Rouge</div>
+    <div class="lang-switch">
+        <button onclick="changeLang('fr')">FR</button>
+        <button onclick="changeLang('en')">EN</button>
+        <button onclick="changeLang('kr')">KR</button>
+    </div>
+</header>
+
+<main>
+    <section class="card" id="content-box">
+        <h2 id="title">Bienvenue 🔥</h2>
+        <p id="description">Serveur de test rouge – spécial saucisson 🇫🇷</p>
+
+        <div class="method-grid">
+            <button class="method-btn" onclick="sendImage()">GET saucisson 🌭</button>
+            <button class="method-btn" onclick="sendRequest('POST')">POST</button>
+            <button class="method-btn" onclick="sendRequest('DELETE')">DELETE</button>
+            <button class="method-btn" onclick="sendRequest('PUT')">PUT</button>
+        </div>
+
+        <div class="response-box" id="response-display">
+            → Cliquez sur un bouton pour voir la réponse HTTP ici.
+        </div>
+    </section>
+</main>
+
+<script>
+const translations = {
+    fr: { title: "Bienvenue 🔥", desc: "Serveur de test rouge – spécial saucisson 🇫🇷" },
+    en: { title: "Welcome 🔥", desc: "Red test server – French sausage edition." },
+    kr: { title: "환영합니다 🔥", desc: "붉은 서버 – 소시송 테스트 페이지." }
+};
+
+function changeLang(lang) {
+    document.getElementById("title").innerText = translations[lang].title;
+    document.getElementById("description").innerText = translations[lang].desc;
+}
+
+function sendImage() {
+    fetch("/images/saucisson.jpg", { method: "GET" })
+        .then(res => res.blob().then(b => ({status: res.status, blob:b})))
+        .then(({status, blob}) => {
+            if (!blob) {
+                document.getElementById("response-display").innerText =
+                    `GET /images/saucisson.jpg → status ${status}`;
+                return;
+            }
+            const url = URL.createObjectURL(blob);
+            document.getElementById("response-display").innerHTML =
+                `<h3>GET /images/saucisson.jpg → status ${status}</h3>
+                 <img src="${url}" style="max-width:260px; border-radius:12px; margin-top:10px;">`;
+        });
+}
+
+function sendRequest(method) {
+    fetch("/", { method })
+        .then(res => res.text().then(t => {
+            document.getElementById("response-display").innerText =
+                `${method} / → status ${res.status}\n\n` + t;
+        }));
+}
+</script>
+
+</body>
+</html>

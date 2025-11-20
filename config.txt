@@ -1,17 +1,50 @@
 server {
     listen 8080;
-    server_name mysite;
+    server_name bread;
 
-    root /home/daeunki2/Desktop/webserv/www;
+    root /home/daeunki2/Desktop/webserv/www/test1;
 
     location / {
-        index index.html;
+        index index_b.html;
     }
 
-	location /upload {
-    root /home/daeunki2/Desktop/webserv/www/upload;
-    autoindex on;
-    index index.html;
-    upload /tmp/uploads;
-	}
+    location /upload {
+        root /home/daeunki2/Desktop/webserv/www/test1/upload;
+        autoindex on;
+        upload /tmp/uploads;
+    }
+}
+
+server {
+    listen 8181;
+    server_name cheese;
+
+    root /home/daeunki2/Desktop/webserv/www/test2;
+
+    location / {
+        index index_w.html;
+    }
+
+    location /upload {
+        root /home/daeunki2/Desktop/webserv/www/test2/upload;
+        autoindex on;
+        upload /tmp/uploads;
+    }
+}
+
+server {
+    listen 8282;
+    server_name sausage;
+
+    root /home/daeunki2/Desktop/webserv/www/test3;
+
+    location / {
+        index index_r.html;
+    }
+
+    location /upload {
+        root /home/daeunki2/Desktop/webserv/www/test3/upload;
+        autoindex on;
+        upload /tmp/uploads;
+    }
 }

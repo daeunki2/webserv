@@ -6,6 +6,7 @@
 
 /* 문자열 관련 */
 std::string trim(const std::string &s);
+std::string to_lower(const std::string& s);
 
 /* split */
 std::vector<std::string> split(const std::string &s);

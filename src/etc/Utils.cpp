@@ -16,6 +16,17 @@ std::string trim(const std::string &s)
     return s.substr(start, end - start);
 }
 
+
+
+std::string to_lower(const std::string& s)
+{
+    std::string result;
+    result.reserve(s.size());
+    for (std::string::size_type i = 0; i < s.size(); ++i)
+        result.push_back(static_cast<char>(std::tolower(static_cast<int>(s[i]))));
+    return result;
+}
+
 std::vector<std::string> split(const std::string &s)
 {
     std::vector<std::string> res;

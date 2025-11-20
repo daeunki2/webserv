@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 10:23:20 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 18:43:01 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,52 +15,74 @@
 /*============================================================================*/
 
 #ifndef REQUEST_PARSER_HPP
-# define REQUEST_PARSER_HPP
+#define REQUEST_PARSER_HPP
 
-# include <string>
-# include "http_request.hpp"
+#include <string>
+#include <vector>
+#include "../Client/http_request.hpp"
 
 class RequestParser
 {
 public:
-    enum State
-    {
-        START_LINE,
-        HEADERS,
-        BODY,
-        DONE,
-        ERROR_STATE
-    };
+	enum ParsingState
+	{
+		PARSING_IN_PROGRESS,
+		PARSING_COMPLETED,
+		PARSING_ERROR
+	};
 
-    RequestParser();
-    RequestParser(const RequestParser &o);
-    RequestParser &operator=(const RequestParser &o);
-    ~RequestParser();
-
-    int feed(const char *data, size_t len);
-
-    const HttpRequest &getRequest() const;
-    void reset();
-
-    State getState() const;
+	enum State
+	{
+		REQUEST_LINE,
+		HEADERS,
+		BODY,
+		CHUNK_SIZE,
+		CHUNK_DATA,
+		COMPLETE,
+		ERROR
+	};
 
 private:
-    State       _state;
-    std::string _buffer;
-    HttpRequest _req;
+	State        _state;
+	std::string  _buffer;
+	http_request _request;
 
-    bool        _hasContentLength;
-    size_t      _contentLength;
-    bool        _chunked;
+	long long _content_to_read;
+	long long _chunk_size;
+	bool      _is_chunked;
 
-    bool parseRequestLine();
-    bool parseHeaders();
-    bool parseBody();
+private:
+	// internal helpers
+	bool extract_line(std::string& line);
 
-    std::string toLower(const std::string &s) const;
+	ParsingState parse_request_line();
+	ParsingState parse_headers();
+	void         parse_header_line(const std::string& line);
+
+	ParsingState parse_body();
+	ParsingState parse_chunk_size();
+	ParsingState parse_chunk_data();
+
+public:
+    // canonical form
+	RequestParser();
+	RequestParser(const RequestParser& other);
+	RequestParser& operator=(const RequestParser& other);
+	~RequestParser();
+
+    // main API
+	ParsingState feed(const char* data, size_t len);
+
+    // completed request
+	const http_request& getRequest() const;
+
+    // reset for keep-alive
+	void reset();
 };
 
 #endif
+
+
 
 /*
 HTTP protocall

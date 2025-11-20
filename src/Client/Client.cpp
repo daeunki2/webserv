@@ -6,37 +6,47 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 10:19:39 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 19:13:58 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Client.hpp"
+#include "../config_parser/Server.hpp"
+#include "../etc/Logger.hpp"
+#include "../etc/Utils.hpp"
+#include "Response_Builder.hpp"
+#include <sstream>
+#include <cstring>
+#include <cerrno>
 
-#include "Client.hpp"
-#include "Logger.hpp"
+/* ************************************************************************** */
+/*                         Canonical form                                      */
+/* ************************************************************************** */
 
 Client::Client()
 : _fd(-1),
   _server(0),
   _parser(),
-  _request(),
-  _responseBuffer(""),
-  _sentBytes(0),
-  _state(READING)
+  _state(RECVING_REQUEST),
+  _response_buffer(),
+  _sent_bytes(0),
+  _error_code(0),
+  _keep_alive(false),
+  last_active_time(time(NULL))
 {
-    last_active_time = time(NULL);
 }
 
-Client::Client(int fd, Server *serverConfig)
+Client::Client(int fd, Server* server)
 : _fd(fd),
-  _server(serverConfig),
+  _server(server),
   _parser(),
-  _request(),
-  _responseBuffer(""),
-  _sentBytes(0),
-  _state(READING)
+  _state(RECVING_REQUEST),
+  _response_buffer(),
+  _sent_bytes(0),
+  _error_code(0),
+  _keep_alive(false),
+  last_active_time(time(NULL))
 {
-    last_active_time = time(NULL);
 }
 
 Client::Client(const Client &o)
@@ -48,82 +58,121 @@ Client &Client::operator=(const Client &o)
 {
     if (this != &o)
     {
-        _fd             = o._fd;
-        _server         = o._server;
-        _parser         = o._parser;
-        _request        = o._request;
-        _responseBuffer = o._responseBuffer;
-        _sentBytes      = o._sentBytes;
-        _state          = o._state;
-        last_active_time= o.last_active_time;
+        _fd              = o._fd;
+        _server          = o._server;
+        _parser          = o._parser;
+        _state           = o._state;
+        _response_buffer = o._response_buffer;
+        _sent_bytes      = o._sent_bytes;
+        _error_code      = o._error_code;
+        _keep_alive      = o._keep_alive;
+        last_active_time = o.last_active_time;
     }
     return *this;
 }
 
 Client::~Client()
-{}
+{
+    // FD close는 Server_Manager가 관리
+}
 
-int Client::getFd() const
+/* ************************************************************************** */
+/*                               getters                                       */
+/* ************************************************************************** */
+
+int Client::get_fd() const
 {
     return _fd;
 }
 
-Client::ParsingState Client::handle_recv_data(const char *data, size_t len)
-{
-    last_active_time = time(NULL);
-
-    int res = _parser.feed(data, len);
-    if (res == -1)
-    {
-        Logger::error("Request parsing error");
-        _state = CONNECTION_CLOSE; // ServerManager가 정리하게
-        return PARSING_ERROR;
-    }
-    else if (res == 1)
-    {
-        _request = _parser.getRequest();
-        _state = REQUEST_COMPLETE;
-        return PARSING_COMPLETED;
-    }
-    return PARSING_INCOMPLETE;
-}
-
-void Client::build_response()
-{
-    if (_state != REQUEST_COMPLETE)
-        return;
-
-    Response_Builder builder(_server, _request);
-    _responseBuffer = builder.build();
-    _sentBytes = 0;
-}
-
-const std::string &Client::get_response_buffer() const
-{
-    return _responseBuffer;
-}
-
-size_t &Client::get_sent_bytes()
-{
-    return _sentBytes;
-}
-
-Client::State Client::get_state() const
+Client::ClientState Client::get_state() const
 {
     return _state;
 }
 
-void Client::update_state(State s)
+const http_request& Client::get_request() const
 {
-    _state = s;
+    return _parser.getRequest();
+}
+
+const std::string& Client::get_response_buffer() const
+{
+    return _response_buffer;
+}
+
+size_t Client::get_response_length() const
+{
+    return _response_buffer.size();
+}
+
+size_t& Client::get_sent_bytes()
+{
+    return _sent_bytes;
+}
+
+/* ************************************************************************** */
+/*                          state / reset                                      */
+/* ************************************************************************** */
+
+void Client::update_state(ClientState st)
+{
+    _state = st;
 }
 
 void Client::reset()
 {
     _parser.reset();
-    _request = HttpRequest();
-    _responseBuffer.clear();
-    _sentBytes = 0;
-    _state = READING;
+    _response_buffer.clear();
+    _sent_bytes  = 0;
+    _error_code  = 0;
+    _keep_alive  = false;
+    _state       = RECVING_REQUEST;
     last_active_time = time(NULL);
 }
+
+/* ************************************************************************** */
+/*                     recv 데이터 → RequestParser                              */
+/* ************************************************************************** */
+
+Client::ParsingState
+Client::handle_recv_data(const char* data, size_t size)
+{
+    last_active_time = time(NULL);
+
+    RequestParser::ParsingState st = _parser.feed(data, size);
+
+    if (st == RequestParser::PARSING_ERROR)
+    {
+        Logger::warn("Parsing error on FD " + toString(_fd));
+        _error_code = 400;
+        _state      = ERROR_STATE;
+        return PARSING_ERROR;
+    }
+    else if (st == RequestParser::PARSING_COMPLETED)
+    {
+        _state = REQUEST_COMPLETE;
+        return PARSING_COMPLETED;
+    }
+
+    return PARSING_IN_PROGRESS;
+}
+
+/* ************************************************************************** */
+/*                          ResponseBuilder 연결                                */
+/* ************************************************************************** */
+
+void Client::build_response()
+{
+    const http_request& req = _parser.getRequest();
+
+    Response_Builder builder(_server, req);
+
+    std::string response;
+
+	response = builder.build();
+
+    _response_buffer = response;
+    _sent_bytes      = 0;
+    _state           = SENDING_RESPONSE;
+}
+

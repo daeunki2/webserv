@@ -6,173 +6,76 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/23 19:13:03 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/06 12:08:20 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:18:08 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+
 #include "http_request.hpp"
 
-// ******************************************************
-//             Private Static Helper Function
-// ******************************************************
+HttpRequest::HttpRequest()
+: _method(""), _uri(""), _path(""), _query(""),
+  _version("HTTP/1.1"), _body(""), _keepAlive(false)
+{}
 
-std::string http_request::to_lower(const std::string& str)
+HttpRequest::HttpRequest(const HttpRequest &o)
 {
-std::string result;
-    result.reserve(str.size()); 
-    for(size_t i = 0; i < str.size(); ++i)
+    *this = o;
+}
+
+HttpRequest &HttpRequest::operator=(const HttpRequest &o)
+{
+    if (this != &o)
     {
-        result.push_back(static_cast<char>(std::tolower(static_cast<int>(str[i]))));
-    }
-    return result;
-}
-
-// ******************************************************
-//              Constructors & Destructor
-// ******************************************************
-
-http_request::http_request()
-: m_method(""), m_uri_path(""), m_query_string(""), m_version("HTTP/1.1"), m_headers(), m_body(""), m_content_length(0), m_is_chunked(false)
-{
-}
-
-http_request::http_request(const http_request& src)
-: m_method(src.m_method), m_uri_path(src.m_uri_path), m_query_string(src.m_query_string), m_version(src.m_version), m_headers(src.m_headers), m_body(src.m_body), m_content_length(src.m_content_length), m_is_chunked(src.m_is_chunked)
-{
-    
-}
-
-http_request& http_request::operator=(const http_request& src)
-{
-    if (this != &src)
-	{
-        m_method = src.m_method;
-        m_uri_path = src.m_uri_path;
-        m_query_string = src.m_query_string;
-        m_version = src.m_version;
-        m_headers = src.m_headers;
-        m_body = src.m_body;
-        m_content_length = src.m_content_length;
-        m_is_chunked = src.m_is_chunked;
+        _method    = o._method;
+        _uri       = o._uri;
+        _path      = o._path;
+        _query     = o._query;
+        _version   = o._version;
+        _headers   = o._headers;
+        _body      = o._body;
+        _keepAlive = o._keepAlive;
     }
     return *this;
 }
 
-http_request::~http_request()
+HttpRequest::~HttpRequest() {}
+
+/* setters */
+
+void HttpRequest::setMethod(const std::string &m) { _method = m; }
+void HttpRequest::setUri(const std::string &u) { _uri = u; }
+void HttpRequest::setPath(const std::string &p) { _path = p; }
+void HttpRequest::setQuery(const std::string &q) { _query = q; }
+void HttpRequest::setVersion(const std::string &v) { _version = v; }
+void HttpRequest::addHeader(const std::string &key, const std::string &value)
 {
-	
+    _headers[key] = value;
+}
+void HttpRequest::setBody(const std::string &b) { _body = b; }
+void HttpRequest::appendBody(const std::string &b) { _body += b; }
+void HttpRequest::setKeepAlive(bool k) { _keepAlive = k; }
+
+/* getters */
+
+const std::string &HttpRequest::getMethod() const { return _method; }
+const std::string &HttpRequest::getUri() const { return _uri; }
+const std::string &HttpRequest::getPath() const { return _path; }
+const std::string &HttpRequest::getQuery() const { return _query; }
+const std::string &HttpRequest::getVersion() const { return _version; }
+const std::map<std::string, std::string> &HttpRequest::getHeaders() const { return _headers; }
+const std::string &HttpRequest::getBody() const { return _body; }
+bool HttpRequest::getKeepAlive() const { return _keepAlive; }
+
+bool HttpRequest::hasHeader(const std::string &key) const
+{
+    return _headers.find(key) != _headers.end();
 }
 
-// ******************************************************
-//                       Getter
-// ******************************************************
-
-const std::string& http_request::get_method() const
+std::string HttpRequest::getHeader(const std::string &key) const
 {
-	return m_method;
-}
-
-const std::string& http_request::get_uri_path() const
-{
-	return m_uri_path;
-}
-
-const std::string& http_request::get_query_string() const
-{
-	return m_query_string;
-}
-
-const std::string& http_request::get_version() const
-{
-	return m_version;
-}
-
-const std::map<std::string, std::string>& http_request::get_headers() const
-{
-	return m_headers;
-}
-
-const std::string& http_request::get_body() const
-{
-	return m_body;
-}
-
-long long http_request::get_content_length() const
-{
-	return m_content_length;
-}
-
-bool http_request::is_chunked() const
-{
-	return m_is_chunked;
-}
-
-const std::string http_request::get_header_value(const std::string &key) const
-{
-    std::string lower_key = to_lower(key);
-    
-    std::map<std::string, std::string>::const_iterator it = m_headers.find(lower_key);
-    
-    if (it != m_headers.end())
-	{
-        return it->second;
-	}
-    return "";
-}
-
-// ******************************************************
-//                       Setter
-// ******************************************************
-
-void http_request::set_method(const std::string &method)
-{
-	m_method = method;
-}
-
-void http_request::set_uri_path(const std::string &path)
-{
-	m_uri_path = path;
-}
-
-void http_request::set_query_string(const std::string &query)
-{
-	m_query_string = query;
-}
-
-void http_request::set_version(const std::string &version)
-{
-	m_version = version;
-}
-
-void http_request::set_content_length(long long length)
-{
-	m_content_length = length;
-}
-
-void http_request::set_is_chunked(bool chunked)
-{
-	m_is_chunked = chunked;
-}
-
-void http_request::add_header(const std::string &key, const std::string &value)
-{
-    std::string lower_key = to_lower(key);
-    m_headers[lower_key] =  value;
-}
-
-void http_request::append_body(const std::string &data)
-{
-    m_body.append(data);
-}
-
-void http_request::reset()
-{
-    m_method.clear();
-    m_uri_path.clear();
-    m_query_string.clear();
-    m_version = "HTTP/1.1";
-    m_headers.clear();
-    m_body.clear();
-    m_content_length = 0;
-    m_is_chunked = false;
+    std::map<std::string, std::string>::const_iterator it = _headers.find(key);
+    if (it == _headers.end())
+        return "";
+    return it->second;
 }

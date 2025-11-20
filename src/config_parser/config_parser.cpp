@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 14:44:41 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:54:34 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,6 +14,10 @@
 
 ConfigParser::ConfigParser() : _i(0)
 {}
+ConfigParser::ConfigParser(const std::string &file)
+{
+	parse(file);
+}
 
 ConfigParser::ConfigParser(const ConfigParser &o)
 : _lines(o._lines), _tokens(o._tokens), _i(o._i)
@@ -37,7 +41,7 @@ ConfigParser::~ConfigParser()
  * PARSE ENTRY
  ****************************************/
 
-std::vector<Server> ConfigParser::parse(const std::string &path)
+void ConfigParser::parse(const std::string &path)
 {
     std::ifstream file(path.c_str());
     if (!file.is_open())
@@ -51,18 +55,16 @@ std::vector<Server> ConfigParser::parse(const std::string &path)
 
     tokenize();
 
-    std::vector<Server> servers;
-
-    while (hasNext())
+	_servers.clear();
+    
+	while (hasNext())
     {
         std::string t = peek();
         if (t == "server")
-            parseServerBlock(servers);
+            parseServerBlock();
         else
             throw Error("Unexpected token: " + t, __FILE__, __LINE__);
     }
-
-    return servers;
 }
 
 /****************************************
@@ -145,7 +147,7 @@ bool ConfigParser::consume(const std::string &t)
  * SERVER BLOCK
  ****************************************/
 
-void ConfigParser::parseServerBlock(std::vector<Server> &servers)
+void ConfigParser::parseServerBlock()
 {
     expect("server");
     expect("{");
@@ -159,7 +161,7 @@ void ConfigParser::parseServerBlock(std::vector<Server> &servers)
         if (t == "}")
         {
             expect("}");
-            servers.push_back(s);
+            _servers.push_back(s);
             return;
         }
         else if (t == "listen")
@@ -229,7 +231,7 @@ void ConfigParser::parseLocationBlock(Server &srv)
         if (t == "}")
         {
             expect("}");
-            srv.addLocation(loc);
+            srv.addLocation(loc);std::vector<Server> _servers;
             return;
         }
         else if (t == "root")
@@ -285,4 +287,9 @@ void ConfigParser::parseLocationBlock(Server &srv)
         else
             throw Error("Unexpected token inside location: " + t, __FILE__, __LINE__);
     }
+}
+
+const std::vector<Server> &ConfigParser::getServers() const
+{
+    return _servers;
 }

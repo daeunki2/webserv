@@ -6,372 +6,278 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/29 14:16:35 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:18:43 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-#include "request_parser.hpp" 
-
-// ******************************************************
-//              Constructors & Destructor
-// ******************************************************
+#include "request_parser.hpp"
+#include "Utils.hpp"
+#include "Logger.hpp"
 
 RequestParser::RequestParser()
-: m_state(REQUEST_LINE), m_chunk_state(READING_SIZE), m_buffer(""), m_request(), m_current_body_size(0), m_current_chunk_size(0)
-{
+: _state(START_LINE),
+  _buffer(""),
+  _req(),
+  _hasContentLength(false),
+  _contentLength(0),
+  _chunked(false)
+{}
 
-};
-
-RequestParser::RequestParser(const RequestParser& src)
-: m_state(src.m_state), m_buffer(src.m_buffer), m_request(src.m_request), m_current_body_size(src.m_current_body_size)
+RequestParser::RequestParser(const RequestParser &o)
 {
-    
-};
+    *this = o;
+}
 
-RequestParser& RequestParser::operator=(const RequestParser& src)
+RequestParser &RequestParser::operator=(const RequestParser &o)
 {
-    if (this != &src) {
-        m_state = src.m_state;
-		m_chunk_state = src.m_chunk_state;
-        m_buffer = src.m_buffer;
-        m_request = src.m_request;
-        m_current_body_size = src.m_current_body_size;
-		m_current_chunk_size = src.m_current_chunk_size;
+    if (this != &o)
+    {
+        _state           = o._state;
+        _buffer          = o._buffer;
+        _req             = o._req;
+        _hasContentLength= o._hasContentLength;
+        _contentLength   = o._contentLength;
+        _chunked         = o._chunked;
     }
     return *this;
-};
+}
 
-RequestParser::~RequestParser()
-{
-    
-};
-
-// ******************************************************
-//                 Getter and reset
-// ******************************************************
-ParsingState RequestParser::get_state() const
-{
-	return m_state;
-};
-
-const http_request& RequestParser::get_request() const
-{
-	return m_request;
-};
+RequestParser::~RequestParser() {}
 
 void RequestParser::reset()
 {
-	m_state = REQUEST_LINE;
-	m_buffer.clear();
-	m_request.reset();
-	m_current_body_size = 0;
+    _state = START_LINE;
+    _buffer.clear();
+    _req   = HttpRequest();
+    _hasContentLength = false;
+    _contentLength    = 0;
+    _chunked          = false;
 }
-// ******************************************************
-//                 Parser unit
-// ******************************************************
 
-ParsingState RequestParser::parseRequestLine()
+RequestParser::State RequestParser::getState() const
 {
-    std::string line = extract_line();
-    
+    return _state;
+}
+
+const HttpRequest &RequestParser::getRequest() const
+{
+    return _req;
+}
+
+std::string RequestParser::toLower(const std::string &s) const
+{
+    std::string r = s;
+    for (size_t i = 0; i < r.size(); ++i)
+    {
+        if (r[i] >= 'A' && r[i] <= 'Z')
+            r[i] = r[i] - 'A' + 'a';
+    }
+    return r;
+}
+
+/* data를 추가로 공급받아 상태에 따라 파싱 */
+int RequestParser::feed(const char *data, size_t len)
+{
+    if (_state == DONE || _state == ERROR_STATE)
+        return (_state == DONE ? 1 : -1);
+
+    _buffer.append(data, len);
+
+    bool progress = true;
+    while (progress)
+    {
+        progress = false;
+
+        if (_state == START_LINE)
+        {
+            if (parseRequestLine())
+            {
+                _state = HEADERS;
+                progress = true;
+            }
+        }
+        else if (_state == HEADERS)
+        {
+            if (parseHeaders())
+            {
+                if (_chunked)
+                {
+                    // 아직 chunked 미지원 → 400으로 처리하기 위해 ERROR_STATE 유지
+                    Logger::warn("Chunked request received but not supported yet.");
+                    _state = ERROR_STATE;
+                    return -1;
+                }
+                else if (_hasContentLength && _contentLength > 0)
+                {
+                    _state = BODY;
+                    progress = true;
+                }
+                else
+                {
+                    _state = DONE;
+                    return 1;
+                }
+            }
+        }
+        else if (_state == BODY)
+        {
+            if (parseBody())
+            {
+                _state = DONE;
+                return 1;
+            }
+        }
+    }
+
+    if (_state == ERROR_STATE)
+        return -1;
+    return 0; // 아직 미완
+}
+
+bool RequestParser::parseRequestLine()
+{
+    std::string::size_type pos = _buffer.find("\r\n");
+    if (pos == std::string::npos)
+        return false;
+
+    std::string line = _buffer.substr(0, pos);
+    _buffer.erase(0, pos + 2);
+
     if (line.empty())
-        return REQUEST_LINE;
+    {
+        _state = ERROR_STATE;
+        return false;
+    }
 
     std::vector<std::string> tokens = split(line, ' ');
-    
     if (tokens.size() != 3)
-        return PARSING_ERROR;
-
-    const std::string& method = tokens[0];
-    if (method != "GET" && method != "POST" && method != "DELETE" && method != "HEAD")
-        return PARSING_ERROR;
-    
-    m_request.set_method(method);
-
-    const std::string& uri = tokens[1];
-    size_t pos = uri.find('?');
-    
-    if (pos == std::string::npos)
-	{
-        m_request.set_uri_path(uri);
-        m_request.set_query_string("");
-    } 
-    else
-	{
-        m_request.set_uri_path(uri.substr(0, pos));
-        m_request.set_query_string(uri.substr(pos + 1));
-    }
-    
-    const std::string& version = tokens[2];
-    if (version != "HTTP/1.1")
-        return PARSING_ERROR;
-    
-    m_request.set_version(version);
-
-    return HEADERS;
-}
-ParsingState RequestParser::parseHeaders()
-{
-	while (true)
-	{
-		if (m_buffer.size() >= 4 && m_buffer.substr(0, 4) == "\r\n\r\n")
-		{
-			m_buffer.erase(0, 4);
-			return HEADERS_DONE;
-		}
-
-		std::string line = extract_line();
-
-		if (line.empty())
-		{
-			if (m_buffer.empty())
-			{
-				return HEADERS_DONE;
-			}
-			if (m_buffer.find("\r\n") == std::string::npos)
-			{
-				return HEADERS;
-			}
-			continue; 
-		}
-
-		size_t colon_pos = line.find(':');
-
-		if (colon_pos == std::string::npos || colon_pos == 0)
-		{
-			return PARSING_ERROR;
-		}
-
-		std::string key = line.substr(0, colon_pos);
-		std::string value = line.substr(colon_pos + 1);
-		trim(value);
-		m_request.add_header(key, value);
-	}
-}
-
-ParsingState RequestParser::determineBodyParsing()
-{
-
-	std::string content_len = m_request.get_header_value("content-length");
-	std::string transfer_encount = m_request.get_header_value("transfer-encoding");
-
-	if (!content_len.empty() && !transfer_encount.empty())
-	{
-		return PARSING_ERROR;
-	}
-
-	if (!transfer_encount.empty() && transfer_encount == "chunked")
-	{
-		return READING_CHUNKED_BODY;
-	}
-	if (!content_len.empty())
-	{
-		char *endptr;
-		long long length = std::strtoll(content_len.c_str(), &endptr, 10);
-
-		if (*endptr != '\0' || length < 0)
-		{
-			return PARSING_ERROR;
-		}
-
-		m_request.set_content_length(static_cast<size_t>(length)); 
-		return READING_BODY;
-	}
-
-	return PARSING_COMPLETED;
-}
-
-ParsingState RequestParser::parseBody()
-{
-	size_t target_length = m_request.get_content_length(); 
-
-	while (m_buffer.size() > 0 && m_current_body_size < target_length)
-	{
-		size_t remaining_needed = target_length - m_current_body_size;
-		size_t chunk_size = std::min(m_buffer.size(), remaining_needed); 
-		std::string body_chunk = m_buffer.substr(0, chunk_size);
-
-		m_request.append_body(body_chunk); 
-
-		m_buffer.erase(0, chunk_size);
-
-		m_current_body_size += chunk_size;
-	}
-	if (m_current_body_size == target_length)
-		return PARSING_COMPLETED; 
-	else
-		return READING_BODY;
-}
-ParsingState RequestParser::parseChunkedBody()
-{
-	while (m_chunk_state != FINISHED)
-	{
-		if (m_chunk_state == READING_SIZE)
-		{
-			std::string line = extract_line();
-			if (line.empty())
-			{
-				return READING_CHUNKED_BODY;
-			}
-
-			char *end;
-			long long size_ll = std::strtoll(line.c_str(), &end, 16);
-
-			if (*end != '\0' && *end != ';')
-			{
-				return PARSING_ERROR;
-			}
-			m_current_chunk_size = static_cast<size_t>(size_ll);
-			if (m_current_chunk_size == 0)
-			{
-				m_chunk_state = FINISHED;
-				continue;
-			}
-			m_chunk_state = READING_DATA;
-		}
-		if (m_chunk_state == READING_DATA)
-		{
-			if (m_buffer.size() < m_current_chunk_size)
-			{
-				return READING_CHUNKED_BODY;
-			}
-			std::string data_chunk = m_buffer.substr(0, m_current_chunk_size);
-			m_request.append_body(data_chunk);
-			m_buffer.erase(0, m_current_chunk_size);
-			m_chunk_state = CONSUMING_CRLF;
-		}
-
-		if (m_chunk_state == CONSUMING_CRLF)
-		{
-			if (m_buffer.size() < 2 || m_buffer.substr(0, 2) != "\r\n")
-			{
-				return PARSING_ERROR;
-			}
-			m_buffer.erase(0, 2);
-			m_chunk_state = READING_SIZE;
-		}	
-	}
-
-	if (m_chunk_state == FINISHED)
-	{
-		if (m_buffer.size() >= 2 && m_buffer.substr(0, 2) == "\r\n")
-		{
-			m_buffer.erase(0, 2);
-			return PARSING_COMPLETED;
-		} 
-		else if (m_buffer.size() > 0)
-		{
-			return PARSING_ERROR;
-		}
-		return READING_CHUNKED_BODY; 
-	}
-	return PARSING_ERROR;
-}
-
-// ******************************************************
-//                   String control
-// ******************************************************
-
-std::string RequestParser::extract_line()
-{
-    size_t position = m_buffer.find("\r\n");
-    
-    if (position == std::string::npos)
-        return std::string();
-
-    std::string line = m_buffer.substr(0, position);
-    
-    m_buffer.erase(0, position + 2);
-    
-    return line;
-}
-
-void RequestParser::trim(std::string &str)
-{
-    const std::string whitespace = " \t\n\v\f\r";
-
-    size_t end = str.find_last_not_of(whitespace);
-    
-    if (end != std::string::npos)
-	{
-        str.erase(end + 1);
-    }
-    else
-	{
-        str.clear();
-        return;
-    }
-
-    size_t start = str.find_first_not_of(whitespace);
-
-    if (start != std::string::npos)
-	{
-        str.erase(0, start);
-	}
-    else
-	{
-        str.clear();
-    }
-}
-std::vector<std::string> RequestParser::split(const std::string &str, char delimiter)
-{
-    std::vector<std::string> result;
-    size_t start = 0;
-    size_t end;
-
-    while ((end = str.find(delimiter, start)) != std::string::npos)
     {
-        if (end != start)
-            result.push_back(str.substr(start, end - start));
-        start = end + 1;
+        _state = ERROR_STATE;
+        return false;
     }
 
-    if (start < str.size())
-        result.push_back(str.substr(start));
+    const std::string &method  = tokens[0];
+    const std::string &uri     = tokens[1];
+    const std::string &version = tokens[2];
 
-    return result;
+    if (version != "HTTP/1.1" && version != "HTTP/1.0")
+    {
+        _state = ERROR_STATE;
+        return false;
+    }
+
+    _req.setMethod(method);
+    _req.setUri(uri);
+    _req.setVersion(version);
+
+    // path / query 분리
+    std::string::size_type qpos = uri.find('?');
+    if (qpos == std::string::npos)
+    {
+        _req.setPath(uri);
+        _req.setQuery("");
+    }
+    else
+    {
+        _req.setPath(uri.substr(0, qpos));
+        _req.setQuery(uri.substr(qpos + 1));
+    }
+
+    return true;
 }
 
-std::string RequestParser::line_extracter(std::string separator)
+bool RequestParser::parseHeaders()
 {
-    size_t position = m_buffer.find(separator);
-    
-    if (position == std::string::npos)
-        return "";
+    std::string::size_type pos = _buffer.find("\r\n\r\n");
+    if (pos == std::string::npos)
+        return false;
 
-    std::string line = m_buffer.substr(0, position);
-    
-    m_buffer.erase(0, position + 2);
-    
-    return line;
+    std::string headersStr = _buffer.substr(0, pos);
+    _buffer.erase(0, pos + 4);
+
+    std::string line;
+    std::string::size_type start = 0;
+    while (true)
+    {
+        std::string::size_type end = headersStr.find("\r\n", start);
+        if (end == std::string::npos)
+            break;
+        line = headersStr.substr(start, end - start);
+        start = end + 2;
+
+        if (line.empty())
+            break;
+
+        std::string::size_type colon = line.find(':');
+        if (colon == std::string::npos)
+        {
+            _state = ERROR_STATE;
+            return false;
+        }
+
+        std::string key = trim(line.substr(0, colon));
+        std::string value = trim(line.substr(colon + 1));
+
+        std::string lowerKey = toLower(key);
+        _req.addHeader(lowerKey, value);
+    }
+
+    // Host 필수 (간단 체크)
+    if (!_req.hasHeader("host"))
+    {
+        _state = ERROR_STATE;
+        return false;
+    }
+
+    // keep-alive 여부
+    std::string connection = toLower(_req.getHeader("connection"));
+    if (connection == "keep-alive")
+        _req.setKeepAlive(true);
+    else
+        _req.setKeepAlive(false);
+
+    // Content-Length
+    std::string cl = _req.getHeader("content-length");
+    if (!cl.empty())
+    {
+        if (!isNumber(cl))
+        {
+            _state = ERROR_STATE;
+            return false;
+        }
+        _hasContentLength = true;
+        _contentLength = (size_t)toInt(cl);
+    }
+
+    // Transfer-Encoding
+    std::string te = toLower(_req.getHeader("transfer-encoding"));
+    if (!te.empty())
+    {
+        if (te == "chunked")
+            _chunked = true;
+    }
+
+    // 둘 다 동시에 설정되면 에러 (RFC 규칙)
+    if (_hasContentLength && _chunked)
+    {
+        _state = ERROR_STATE;
+        return false;
+    }
+
+    return true;
 }
-// ******************************************************
-//                   Load parsed data
-// ******************************************************
 
-
-ParsingState RequestParser::load_data(const char* data, size_t size)
+bool RequestParser::parseBody()
 {
-	m_buffer.append(data, size); 
+    if (!_hasContentLength)
+        return true;
 
-	while (m_state != PARSING_COMPLETED && m_state != PARSING_ERROR)
-	{
-		ParsingState old_state = m_state; 
+    if (_buffer.size() < _contentLength)
+        return false;
 
-		if (m_state == REQUEST_LINE )
-			m_state = parseRequestLine();
-		else if (m_state == HEADERS)
-			m_state = parseHeaders();
-		else if (m_state == HEADERS_DONE)
-			m_state = determineBodyParsing();
-		else if (m_state == READING_BODY)
-			m_state = parseBody();
-		else if (m_state == READING_CHUNKED_BODY)
-			m_state = parseChunkedBody();
-		if (m_state == old_state)
-		{
-			break;
-		}
-	}
-	return m_state;
+    std::string body = _buffer.substr(0, _contentLength);
+    _buffer.erase(0, _contentLength);
+    _req.setBody(body);
+
+    return true;
 }

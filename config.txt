@@ -1,37 +1,17 @@
 server {
     listen 8080;
     server_name mysite;
-    root /var/www;
 
-    location /upload {
-        root /var/www/upload;
-        autoindex on;
-        index index.html;
-        upload /tmp/uploads;
-    }
-    location /upload {
-        root /var/www/upload;
-        autoindex on;
-        index index.html;
-        upload /tmp/uploads;
-    }
-}
+    root /home/daeunki2/Desktop/webserv/www;
 
-server {
-    listen 8181;
-    server_name mysite2;
-    root /var/www3;
+    location / {
+        index index.html;
+    }
 
-    location /upload7 {
-        root /var/www/upload;
-        autoindex on;
-        index index.html;
-        upload /tmp/uploads;
-    }
-    location /upload7 {
-        root /var/www/upload;
-        autoindex on;
-        index index.html;
-        upload /tmp/uploads;
-    }
+	location /upload {
+    root /home/daeunki2/Desktop/webserv/www/upload;
+    autoindex on;
+    index index.html;
+    upload /tmp/uploads;
+	}
 }

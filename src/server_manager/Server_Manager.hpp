@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/29 14:16:11 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:39:48 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:00:13 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,10 +51,10 @@
 class Server_Manager
 {
 private:
-    std::vector<Server>              _servers;        // config에서 읽어온 서버들
-    std::vector<int>                 _listening_fds;  // listen 소켓들
-    std::map<int, Server*>           _fd_to_server;   // listen fd -> Server*
-    std::map<int, Client>            _clients;        // client fd -> Client
+    std::vector<Server>              _servers;
+    std::vector<int>                 _listening_fds;
+    std::map<int, Server*>           _fd_to_server;		// listen fd -> Server*
+    std::map<int, Client>            _clients;			// client fd -> Client
     std::vector<struct pollfd>       _poll_fds;
 
 public:
@@ -65,7 +65,6 @@ public:
     Server_Manager &operator=(const Server_Manager &o);
     ~Server_Manager();
 
-    /* 메인 루프 한 턴 */
     void run();
 
 private:
@@ -73,19 +72,19 @@ private:
     void init_sockets();
     void set_fd_non_blocking(int fd);
 
-    /* 유틸 */
+    /* utile */
     bool   is_listening_fd(int fd) const;
     Server *get_server_by_fd(int fd);
     void   update_poll_events(int fd, short events);
 
-    /* client 관리 */
+    /* client  */
     void check_idle_clients();
     void accept_new_client(int server_fd);
     void close_connection(int client_fd);
 
-    /* I/O 처리 */
-    bool receive_request(int client_fd);  // true → 연결 종료됨
-    bool send_response(int client_fd);    // true → 연결 종료됨
+    /* I/O */
+    bool receive_request(int client_fd);  // true → quit connection
+    bool send_response(int client_fd);    // true → quit connection
 };
 
 #endif

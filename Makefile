@@ -6,43 +6,46 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/11/19 14:43:30 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/11/20 10:52:07 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME = webserv
 CC = c++
-CFLAGS = -Wall -Wextra -Werror -std=c++98 -I $(INC_DIR)
+CFLAGS = -Wall -Wextra -Werror -std=c++98 \
+		-I $(SRC_DIR)/config_parser \
+		-I $(SRC_DIR)/etc \
+		-I $(SRC_DIR)/Client \
+		-I $(SRC_DIR)/server_manager
 
 OBJ_DIR = obj
 SRC_DIR = src
 INC_DIR = inc
 
 
-SRCS = $(SRC_DIR)/main.cpp \
+SRCS = $(SRC_DIR)/test.cpp \
 		$(SRC_DIR)/config_parser/config_parser.cpp \
 		$(SRC_DIR)/config_parser/Location.cpp \
 		$(SRC_DIR)/config_parser/Server.cpp \
+		$(SRC_DIR)/server_manager/Server_Manager.cpp \
 		$(SRC_DIR)/etc/Error.cpp \
 		$(SRC_DIR)/etc/Logger.cpp \
 		$(SRC_DIR)/etc/Utils.cpp \
-        
-        
+        $(SRC_DIR)/Client/Client.cpp \
+		$(SRC_DIR)/Client/request_parser.cpp \
+		$(SRC_DIR)/Client/http_request.cpp \
+		$(SRC_DIR)/Client/Response_Builder.cpp \
+
 OBJS = $(SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/%.o)
 
 all: $(NAME)
-
-# --- 1. $(OBJ_DIR): 타겟을 제거합니다 (아래 규칙에서 처리됨) ---
 
 $(NAME): $(OBJS)
 	@echo "Building $(NAME) 🛠️"
 	@$(CC) $(CFLAGS) $(OBJS) -o $(NAME)
 	@echo "Build Complete! ✅"
 
-# --- 2. 객체 파일 생성 규칙 수정 (하위 디렉토리 자동 생성) ---
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-    # $@는 목표 파일 이름(예: obj/request_parser/http_request.o)입니다.
-    # $(dir $@)는 해당 파일의 디렉토리 경로(예: obj/request_parser/)를 반환합니다.
 	@mkdir -p $(dir $@)
 	@$(CC) $(CFLAGS) -c $< -o $@
 

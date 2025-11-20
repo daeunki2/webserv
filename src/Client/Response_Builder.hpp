@@ -6,44 +6,45 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/06 12:10:37 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:23:27 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #ifndef RESPONSE_BUILDER_HPP
-#define RESPONSE_BUILDER_HPP
+# define RESPONSE_BUILDER_HPP
 
-#include <string>
-#include <ctime>
-#include <vector>
-#include <unistd.h>
-#include <iostream>
-#include <cstdlib>
-#include "http_request.hpp" 
-#include "Server.hpp" 
+# include <string>
+# include "http_request.hpp"
+# include "Server.hpp"
+# include "Location.hpp"
 
 class Response_Builder
 {
-	private:
-	const http_request&	m_request;
-	const Server*		m_config;
-	std::string         m_response_content;
-	
-	void    build_status_line(int status_code, const std::string& reason_phrase);
-	void    add_header(const std::string& key, const std::string& value);
-	void    add_body(const std::string& body_content);
+public:
+    Response_Builder(Server *server, const HttpRequest &req);
+    Response_Builder(const Response_Builder &o);
+    Response_Builder &operator=(const Response_Builder &o);
+    ~Response_Builder();
 
-	std::string handle_get();
-	std::string handle_post();
-	std::string handle_delete();
-	std::string get_mime_type(const std::string& path) const;
-	std::string get_error_page_content(int status_code) const;
+    std::string build();
 
-	public:
-	Response_Builder(const http_request& request, const Server* config);
-	~Response_Builder();
-	
-	const std::string& build_response();
+private:
+    Server      *_server;
+    HttpRequest _req;
+
+    /* helpers */
+    const Location *matchLocation(const std::string &path) const;
+    std::string     buildErrorResponse(int status, const std::string &msg);
+    std::string     buildRedirectResponse(int status, const std::string &url);
+    std::string     buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath);
+    std::string     buildFileResponse(const std::string &fsPath, int status);
+    std::string     buildSimpleResponse(int status, const std::string &body);
+
+    bool            isMethodAllowed(const Location *loc) const;
+    std::string     getMimeType(const std::string &path) const;
+    std::string     statusMessage(int status) const;
+    std::string     applyRoot(const Location *loc, const std::string &path) const;
+    std::string     findErrorPage(int status) const;
 };
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 14:53:06 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 11:03:45 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -158,18 +158,15 @@ void Server_Manager::update_poll_events(int fd, short events)
 
 void Server_Manager::close_connection(int client_fd)
 {
-    std::map<int, Client>::iterator it = _clients.find(client_fd);
-    if (it != _clients.end())
-    {
-        Logger::info("Closing client FD " + toString(client_fd));
-        _clients.erase(it);
-    }
+    Logger::info("Closing client FD " + toString(client_fd));
 
-    for (std::vector<struct pollfd>::iterator p = _poll_fds.begin(); p != _poll_fds.end(); ++p)
+    _clients.erase(client_fd);
+
+    for (size_t i = 0; i < _poll_fds.size(); ++i)
     {
-        if (p->fd == client_fd)
+        if (_poll_fds[i].fd == client_fd)
         {
-            _poll_fds.erase(p);
+            _poll_fds.erase(_poll_fds.begin() + i);
             break;
         }
     }
@@ -178,6 +175,7 @@ void Server_Manager::close_connection(int client_fd)
         Logger::error("close() failed for FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
 }
 
+
 void Server_Manager::check_idle_clients()
 {
     time_t now = time(NULL);
@@ -185,113 +183,97 @@ void Server_Manager::check_idle_clients()
     for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); )
     {
         int fd = it->first;
-        time_t last = it->second.last_active_time; 
+        time_t last = it->second.last_active_time;
+
         if (now - last > IDLE_TIMEOUT_SECONDS)
         {
-            Logger::warn("Client FD " + toString(fd) + " timed out (idle).");
-            ++it;
-            close_connection(fd);
+            Logger::warn("Client FD " + toString(fd) + " idle timeout.");
+
+            ++it;                // 먼저 iterator 이동
+            close_connection(fd); // 내부에서 안전하게 erase
         }
         else
+        {
             ++it;
+        }
     }
 }
+
 
 void Server_Manager::accept_new_client(int server_fd)
 {
     struct sockaddr_storage client_addr;
     socklen_t addr_size;
-    int client_fd;
 
     while (true)
     {
         addr_size = sizeof(client_addr);
-        client_fd = accept(server_fd, (struct sockaddr *)&client_addr, &addr_size);
 
+        int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_size);
         if (client_fd < 0)
         {
             if (errno == EAGAIN || errno == EWOULDBLOCK)
                 return;
-            Logger::error("accept() failed on FD " + toString(server_fd) + ": " + std::string(strerror(errno)));
+            Logger::error("accept() failed: " + std::string(strerror(errno)));
             return;
         }
 
-        if (fcntl(client_fd, F_SETFL, O_NONBLOCK) < 0)
-        {
-            Logger::error("fcntl(O_NONBLOCK) failed for client FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
-            close(client_fd);
-            continue;
-        }
+        set_fd_non_blocking(client_fd);
 
         Server *config = get_server_by_fd(server_fd);
         if (!config)
         {
-            Logger::error("No server config found for listening FD " + toString(server_fd));
+            Logger::error("No server config for FD " + toString(server_fd));
             close(client_fd);
             continue;
         }
 
-        try
-        {
-            Client c(client_fd, config);
-            c.last_active_time = time(NULL);
-            _clients.insert(std::make_pair(client_fd, c));
-        }
-        catch (const std::exception &e)
-        {
-            Logger::error(std::string("Client creation failed: ") + e.what());
-            close(client_fd);
-            continue;
-        }
+        Client c(client_fd, config);
+        c.last_active_time = time(NULL);
+        _clients.insert(std::make_pair(client_fd, c));
 
         struct pollfd pfd;
-        pfd.fd      = client_fd;
-        pfd.events  = POLLIN;
+        pfd.fd = client_fd;
+        pfd.events = POLLIN;
         pfd.revents = 0;
         _poll_fds.push_back(pfd);
 
-        Logger::info("New client connected, FD " + toString(client_fd));
+        Logger::info("Accepted new client FD " + toString(client_fd));
     }
 }
+
 
 /* ************************************************************************** */
 /*                         Request / Response                                 */
 /* ************************************************************************** */
 
-bool Server_Manager::receive_request(int client_fd)
+bool Server_Manager::receive_request(int fd)
 {
-    std::map<int, Client>::iterator it = _clients.find(client_fd);
-    if (it == _clients.end())
-        return true;
+    Client &client = _clients[fd];
 
-    Client &client = it->second;
+    char buf[RECV_BUFFER_SIZE];
+    ssize_t n = recv(fd, buf, RECV_BUFFER_SIZE, 0);
 
-    char buffer[RECV_BUFFER_SIZE];
-    ssize_t bytes_read = recv(client_fd, buffer, RECV_BUFFER_SIZE, 0);
-
-    if (bytes_read <= 0)
+    if (n <= 0)
     {
-        if (bytes_read == 0)
-            Logger::info("Client FD " + toString(client_fd) + " closed the connection.");
-        else if (errno != EAGAIN && errno != EWOULDBLOCK)
-            Logger::error("recv() failed on FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
-        close_connection(client_fd);
+        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
+            Logger::error("recv failed: " + std::string(strerror(errno)));
+        close_connection(fd);
         return true;
     }
 
     client.last_active_time = time(NULL);
 
-    Client::ParsingState st = client.handle_recv_data(buffer, (size_t)bytes_read);
+    Client::ParsingState st = client.handle_recv_data(buf, n);
 
     if (st == Client::PARSING_ERROR)
     {
-        Logger::error("Parsing error on client FD " + toString(client_fd));
-        close_connection(client_fd);
+        close_connection(fd);
         return true;
     }
     else if (st == Client::PARSING_COMPLETED)
     {
-        client.update_state(REQUEST_COMPLETE);
+        client.update_state(Client::REQUEST_COMPLETE);
     }
 
     return false;
@@ -299,53 +281,42 @@ bool Server_Manager::receive_request(int client_fd)
 
 bool Server_Manager::send_response(int client_fd)
 {
-    std::map<int, Client>::iterator it = _clients.find(client_fd);
-    if (it == _clients.end())
-        return true;
-
-    Client &client = it->second;
-
+    Client &client = _clients[client_fd];
     const std::string &buf = client.get_response_buffer();
-    size_t &sent           = client.get_sent_bytes();
-    size_t total           = buf.size();
+    size_t &sent = client.get_sent_bytes();
 
-    if (total == 0 || sent >= total)
+    size_t total = buf.size();
+    if (sent >= total)
     {
-        client.update_state(CONNECTION_CLOSE);
-    }
-
-    size_t remaining = total - sent;
-    const char *data = buf.c_str() + sent;
-
-    ssize_t bytes_sent = send(client_fd, data, remaining, 0);
-    if (bytes_sent < 0)
-    {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return false; 
-        Logger::error("send() failed on FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
+        client.update_state(Client::CONNECTION_CLOSE);
         close_connection(client_fd);
         return true;
     }
 
-    sent += (size_t)bytes_sent;
+    ssize_t bytes_sent = send(client_fd, buf.c_str() + sent, total - sent, 0);
 
-    if (sent == total)
+    if (bytes_sent < 0)
     {
-        client.update_state(CONNECTION_CLOSE);
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return false;
 
-        if (client.get_state() == CONNECTION_CLOSE)
-        {
-            close_connection(client_fd);
-            return true;
-        }
-        else
-        {
-            client.reset();
-            update_poll_events(client_fd, POLLIN);
-        }
+        Logger::error("send() failed: " + std::string(strerror(errno)));
+        close_connection(client_fd);
+        return true;
     }
+
+    sent += bytes_sent;
+
+    if (sent >= total)
+    {
+        client.update_state(Client::CONNECTION_CLOSE);
+        close_connection(client_fd);
+        return true;
+    }
+
     return false;
 }
+
 
 /* ************************************************************************** */
 /*                              Main loop                                     */
@@ -353,73 +324,84 @@ bool Server_Manager::send_response(int client_fd)
 
 void Server_Manager::run()
 {
-    check_idle_clients();
+    Logger::info("ServerManager main loop started.");
 
-    if (_poll_fds.empty())
-        return;
-
-    int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
-    if (ret < 0)
+    while (true)
     {
-        if (errno != EINTR)
+        check_idle_clients();
+
+        if (_poll_fds.empty())
+        {
+            Logger::error("No poll fds left. Exiting loop.");
+            break;
+        }
+
+        int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
+
+        if (ret < 0)
+        {
+            if (errno == EINTR)
+                continue;
             Logger::error("poll() failed: " + std::string(strerror(errno)));
-        return;
-    }
-    if (ret == 0)
-        return;
+            break;
+        }
 
-    for (size_t i = 0; i < _poll_fds.size(); ++i)
-    {
-        struct pollfd &pfd = _poll_fds[i];
-        if (pfd.revents == 0)
+        if (ret == 0)
             continue;
 
-        int fd = pfd.fd;
-
-        if (is_listening_fd(fd))
+        for (size_t i = 0; i < _poll_fds.size(); ++i)
         {
-            if (pfd.revents & POLLIN)
-                accept_new_client(fd);
-            continue;
-        }
+            struct pollfd &pfd = _poll_fds[i];
+            int fd = pfd.fd;
 
-        bool closed = false;
+            if (pfd.revents == 0)
+                continue;
 
-        if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
-        {
-            Logger::warn("poll error/hup on FD " + toString(fd));
-            close_connection(fd);
-            closed = true;
-        }
+            bool closed = false;
 
-        if (!closed && (pfd.revents & POLLIN))
-        {
-            if (receive_request(fd))
-                closed = true;
-        }
-
-        if (!closed)
-        {
-            std::map<int, Client>::iterator it = _clients.find(fd);
-            if (it != _clients.end())
+            if (is_listening_fd(fd))
             {
-                Client &client = it->second;
-                if (client.get_state() == REQUEST_COMPLETE)
+                if (pfd.revents & POLLIN)
+                    accept_new_client(fd);
+                continue;
+            }
+
+            if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
+            {
+                Logger::warn("poll error/hup on client FD " + toString(fd));
+                close_connection(fd);
+                closed = true;
+            }
+
+
+            if (!closed && (pfd.revents & POLLIN))
+            {
+                if (receive_request(fd))
+                    closed = true;
+            }
+            if (!closed)
+            {
+                std::map<int, Client>::iterator it = _clients.find(fd);
+                if (it != _clients.end())
                 {
-                    client.build_response();
-                    client.update_state(SENDING_RESPONSE);
-                    update_poll_events(fd, POLLOUT);
+                    Client &client = it->second;
+
+                    if (client.get_state() == Client::REQUEST_COMPLETE)
+                    {
+                        client.build_response();
+                        client.update_state(Client::SENDING_RESPONSE);
+                        update_poll_events(fd, POLLOUT);
+                    }
                 }
             }
-        }
 
-        if (!closed && (pfd.revents & POLLOUT))
-        {
-            if (send_response(fd))
-                closed = true;
+            if (!closed && (pfd.revents & POLLOUT))
+            {
+                if (send_response(fd))
+                    closed = true;
+            }
+            if (closed && i > 0)
+                --i;
         }
-
-        if (closed && i > 0)
-            --i;
     }
 }

@@ -6,265 +6,358 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/06 12:12:10 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:50:06 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Response_Builder.hpp"
-#include "Server.hpp" // Server 설정 구조체 포함
-#include "http_request.hpp" // http_request 구조체 포함
+#include "Utils.hpp"
+#include "Logger.hpp"
+
+#include <sys/stat.h>
+#include <dirent.h>
 #include <fstream>
 #include <sstream>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <dirent.h>
-#include <unistd.h>
-#include <map>
-#include <iostream>
-#include <cstdlib>
-#include <algorithm> // transform 사용
+#include <cstdio>
 
-// ******************************************************
-//              Constructors & Destructor
-// ******************************************************
-
-Response_Builder::Response_Builder(const http_request& request, const Server* config)
-: m_request(request), m_config(config)
+Response_Builder::Response_Builder(Server *server, const HttpRequest &req)
+: _server(server), _req(req)
 {}
 
-Response_Builder::~Response_Builder()
-{}
+Response_Builder::Response_Builder(const Response_Builder &o)
+{
+    *this = o;
+}
 
-// ******************************************************
-//              Internal Helper Functions
-// ******************************************************
+Response_Builder &Response_Builder::operator=(const Response_Builder &o)
+{
+    if (this != &o)
+    {
+        _server = o._server;
+        _req    = o._req;
+    }
+    return *this;
+}
 
-void Response_Builder::build_status_line(int status_code, const std::string& reason_phrase)
+Response_Builder::~Response_Builder() {}
+
+std::string Response_Builder::statusMessage(int status) const
+{
+    if (status == 200) return "OK";
+    if (status == 201) return "Created";
+    if (status == 204) return "No Content";
+    if (status == 301) return "Moved Permanently";
+    if (status == 302) return "Found";
+    if (status == 400) return "Bad Request";
+    if (status == 403) return "Forbidden";
+    if (status == 404) return "Not Found";
+    if (status == 405) return "Method Not Allowed";
+    if (status == 413) return "Payload Too Large";
+    if (status == 500) return "Internal Server Error";
+    if (status == 501) return "Not Implemented";
+    if (status == 502) return "Bad Gateway";
+    return "Unknown";
+}
+
+const Location *Response_Builder::matchLocation(const std::string &path) const
+{
+    const std::vector<Location> &locs = _server->getLocations();
+    const Location *best = 0;
+    size_t bestLen = 0;
+
+    for (size_t i = 0; i < locs.size(); ++i)
+    {
+        const std::string &lp = locs[i].getPath(); // ex) "/upload"
+        if (lp.empty())
+            continue;
+        if (path.compare(0, lp.size(), lp) == 0 &&
+            (lp.size() > bestLen))
+        {
+            best = &locs[i];
+            bestLen = lp.size();
+        }
+    }
+    return best;
+}
+
+bool Response_Builder::isMethodAllowed(const Location *loc) const
+{
+    if (!loc)
+        return true; // server level에서는 제한 X
+
+    const std::vector<std::string> &methods = loc->getMethods();
+    if (methods.empty())
+        return true;
+
+    const std::string &m = _req.getMethod();
+    for (size_t i = 0; i < methods.size(); ++i)
+    {
+        if (methods[i] == m)
+            return true;
+    }
+    return false;
+}
+
+std::string Response_Builder::getMimeType(const std::string &path) const
+{
+    std::string::size_type pos = path.rfind('.');
+    if (pos == std::string::npos)
+        return "application/octet-stream";
+
+    std::string ext = path.substr(pos + 1);
+    if (ext == "html" || ext == "htm")
+        return "text/html";
+    if (ext == "css")
+        return "text/css";
+    if (ext == "js")
+        return "application/javascript";
+    if (ext == "png")
+        return "image/png";
+    if (ext == "jpg" || ext == "jpeg")
+        return "image/jpeg";
+    if (ext == "gif")
+        return "image/gif";
+    if (ext == "txt")
+        return "text/plain";
+    return "application/octet-stream";
+}
+
+std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
+{
+    std::string root = _server->getRoot();
+    if (loc && !loc->getRoot().empty())
+        root = loc->getRoot();
+
+    if (root.size() && root[root.size() - 1] == '/')
+        root.erase(root.size() - 1);
+
+    std::string full = root + path;
+    return full;
+}
+
+std::string Response_Builder::findErrorPage(int status) const
+{
+    const std::vector<std::pair<int, std::string> > &errs = _server->getErrorPages();
+    for (size_t i = 0; i < errs.size(); ++i)
+    {
+        if (errs[i].first == status)
+            return errs[i].second;
+    }
+    return "";
+}
+
+std::string Response_Builder::buildSimpleResponse(int status, const std::string &body)
 {
     std::ostringstream oss;
-    oss << "HTTP/1.1 " << status_code << " " << reason_phrase << "\r\n";
-    m_response_content += oss.str();
+    std::string msg = statusMessage(status);
+
+    oss << "HTTP/1.1 " << status << " " << msg << "\r\n";
+    oss << "Content-Length: " << body.size() << "\r\n";
+    oss << "Content-Type: text/html\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
+    oss << body;
+
+    return oss.str();
 }
 
-void Response_Builder::add_header(const std::string& key, const std::string& value)
+std::string Response_Builder::buildErrorResponse(int status, const std::string &msg)
 {
-    m_response_content += key + ": " + value + "\r\n";
-}
-
-void Response_Builder::add_body(const std::string& body_content)
-{
-    m_response_content += "\r\n"; 
-    m_response_content += body_content;
-}
-
-std::string Response_Builder::get_mime_type(const std::string& path) const
-{
-    size_t dot_pos = path.rfind('.');
-    if (dot_pos == std::string::npos) return "application/octet-stream";
-    
-    std::string ext = path.substr(dot_pos);
-    if (ext == ".html" || ext == ".htm") return "text/html";
-    if (ext == ".css") return "text/css";
-    if (ext == ".js") return "application/javascript";
-    if (ext == ".jpg" || ext == ".jpeg") return "image/jpeg";
-    if (ext == ".png") return "image/png";
-    if (ext == ".gif") return "image/gif";
-    if (ext == ".ico") return "image/x-icon";
-    return "text/plain";
-}
-
-std::string Response_Builder::get_error_page_content(int status_code)
-{
-
-    std::string error_uri = m_config->get_error_page_path(status_code); 
-    
-    if (error_uri.empty())
+    std::string custom = findErrorPage(status);
+    if (!custom.empty())
     {
-        std::ostringstream oss;
-        oss << "<html><head><title>Error " << status_code << "</title></head>";
-        oss << "<body><h1>" << status_code << " Error</h1><p>Webserv Default Error Page</p></body></html>";
-        return oss.str();
-    }
-
-    std::string full_path = m_config->get_root() + error_uri; 
-
-    std::ifstream ifs(full_path.c_str());
-    if (!ifs.is_open())
-    {
-        return "<html><body><h1>500 Internal Server Error</h1><p>Failed to load custom error page.</p></body></html>";
-    }
-
-    std::stringstream buffer;
-    buffer << ifs.rdbuf();
-    return buffer.str();
-}
-
-
-// ******************************************************
-//             Method Handling (핵심 라우팅 로직)
-// ******************************************************
-
-std::string Response_Builder::handle_get()
-{
-    std::string root_path = m_config->get_root(); 
-    std::string full_path = root_path + m_request.get_uri();
-    
-    struct stat file_info;
-    if (stat(full_path.c_str(), &file_info) != 0)
-        throw std::runtime_error("404"); // Not Found
-
-    if (S_ISREG(file_info.st_mode))
-    {
-        std::ifstream ifs(full_path.c_str());
-        if (!ifs.is_open())
-            throw std::runtime_error("403"); // Forbidden
-        
-        std::stringstream buffer;
-        buffer << ifs.rdbuf();
-        return buffer.str();
-    }
-    
-    if (S_ISDIR(file_info.st_mode))
-    {
-        std::string index_path = full_path;
-        if (index_path.back() != '/')
-            index_path += '/';
-        index_path += "index.html";
-        
-        if (stat(index_path.c_str(), &file_info) == 0 && S_ISREG(file_info.st_mode))
+        std::string fsPath = applyRoot(0, custom);
+        std::ifstream f(fsPath.c_str(), std::ios::in | std::ios::binary);
+        if (f)
         {
-            std::ifstream ifs(index_path.c_str());
-            if (!ifs.is_open())
-                throw std::runtime_error("403");
-            
-            std::stringstream buffer;
-            buffer << ifs.rdbuf();
-            return buffer.str();
+            std::ostringstream body;
+            body << f.rdbuf();
+            std::string content = body.str();
+
+            std::ostringstream oss;
+            oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
+            oss << "Content-Length: " << content.size() << "\r\n";
+            oss << "Content-Type: text/html\r\n";
+            oss << "Connection: close\r\n";
+            oss << "\r\n";
+            oss << content;
+            return oss.str();
         }
-        
-        if (m_config->is_autoindex_enabled())
-        {
-            throw std::runtime_error("403"); 
-        }
-        
-        throw std::runtime_error("403"); 
     }
 
-    throw std::runtime_error("403"); 
+    std::ostringstream body;
+    body << "<html><head><title>" << status << " " << statusMessage(status)
+         << "</title></head><body><h1>" << status << " " << statusMessage(status)
+         << "</h1><p>" << msg << "</p></body></html>";
+    return buildSimpleResponse(status, body.str());
 }
 
-std::string Response_Builder::handle_post()
+std::string Response_Builder::buildRedirectResponse(int status, const std::string &url)
 {
-    std::string len_str = m_request.get_header_value("Content-Length");
-    if (len_str.empty())
-        throw std::runtime_error("411"); 
-    size_t content_len = std::atol(len_str.c_str());
-    if (content_len > m_config->get_max_body_size())
-        throw std::runtime_error("413"); 
+    std::ostringstream oss;
+    std::string msg = statusMessage(status);
 
-    std::string upload_path = m_config->get_upload_path();
-    std::string filename = "/post_data_" + std::to_string(time(NULL)) + ".dat";
-    
-    std::ofstream ofs((upload_path + filename).c_str());
-    if (!ofs.is_open())
-        throw std::runtime_error("500");
-    
-    ofs << m_request.get_body();
-    
-    return "Resource created successfully at " + filename;
+    std::string body = "<html><head><title>" + toString(status) + " " + msg +
+                       "</title></head><body><h1>" + msg +
+                       "</h1><p><a href=\"" + url + "\">" + url +
+                       "</a></p></body></html>";
+
+    oss << "HTTP/1.1 " << status << " " << msg << "\r\n";
+    oss << "Location: " << url << "\r\n";
+    oss << "Content-Length: " << body.size() << "\r\n";
+    oss << "Content-Type: text/html\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
+    oss << body;
+
+    return oss.str();
 }
 
-std::string Response_Builder::handle_delete()
+std::string Response_Builder::buildAutoindexResponse(const std::string &fsPath,
+                                                     const std::string &urlPath)
 {
-    std::string root_path = m_config->get_root(); 
-    std::string full_path = root_path + m_request.get_uri();
-    
-    if (std::remove(full_path.c_str()) != 0)
+    DIR *dir = opendir(fsPath.c_str());
+    if (!dir)
+        return buildErrorResponse(403, "Autoindex forbidden");
+
+    std::ostringstream body;
+    body << "<html><head><title>Index of " << urlPath
+         << "</title></head><body><h1>Index of " << urlPath << "</h1><ul>";
+
+    struct dirent *entry;
+    while ((entry = readdir(dir)) != 0)
     {
-        if (errno == ENOENT) 
-            throw std::runtime_error("404");
-        else if (errno == EACCES) 
-            throw std::runtime_error("403");
+        std::string name = entry->d_name;
+        if (name == "." || name == "..")
+            continue;
+        body << "<li><a href=\"" << urlPath;
+        if (urlPath.size() && urlPath[urlPath.size() - 1] != '/')
+            body << "/";
+        body << name << "\">" << name << "</a></li>";
+    }
+    closedir(dir);
+    body << "</ul></body></html>";
+
+    return buildSimpleResponse(200, body.str());
+}
+
+std::string Response_Builder::buildFileResponse(const std::string &fsPath, int status)
+{
+    std::ifstream f(fsPath.c_str(), std::ios::in | std::ios::binary);
+    if (!f)
+        return buildErrorResponse(404, "File not found");
+
+    std::ostringstream body;
+    body << f.rdbuf();
+    std::string content = body.str();
+
+    std::ostringstream oss;
+    oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
+    oss << "Content-Length: " << content.size() << "\r\n";
+    oss << "Content-Type: " << getMimeType(fsPath) << "\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
+    oss << content;
+
+    return oss.str();
+}
+
+std::string Response_Builder::build()
+{
+    const std::string &method = _req.getMethod();
+    const std::string &path   = _req.getPath();
+
+    if (method != "GET" && method != "POST" && method != "DELETE")
+        return buildErrorResponse(405, "Method not allowed");
+
+    const Location *loc = matchLocation(path);
+
+    if (!isMethodAllowed(loc))
+        return buildErrorResponse(405, "Method not allowed");
+
+    // redirect
+    if (loc && loc->isRedirect())
+        return buildRedirectResponse(loc->getRedirectCode(), loc->getRedirectUrl());
+
+    // body size 제한
+    if (_req.getBody().size() > _server->getClientMaxBodySize())
+        return buildErrorResponse(413, "Payload too large");
+
+    // 파일 시스템 경로 계산
+    std::string fsPath = applyRoot(loc, path);
+
+    // 디렉토리인지 확인
+    struct stat st;
+    if (stat(fsPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
+    {
+        std::string indexFile;
+        if (loc && !loc->getIndex().empty())
+            indexFile = loc->getIndex();
         else
-            throw std::runtime_error("500"); 
+            indexFile = "index.html";
+
+        if (fsPath.size() && fsPath[fsPath.size() - 1] != '/')
+            fsPath += "/";
+        std::string indexPath = fsPath + indexFile;
+
+        if (stat(indexPath.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+            return buildFileResponse(indexPath, 200);
+
+        // autoindex
+        bool autoindex = false;
+        if (loc)
+            autoindex = loc->getAutoindex();
+        if (autoindex)
+            return buildAutoindexResponse(fsPath, path);
+        else
+            return buildErrorResponse(403, "Directory listing forbidden");
     }
-    
-    throw std::runtime_error("204"); 
-}
 
-
-// ******************************************************
-//             Main Control Function
-// ******************************************************
-
-const std::string& Response_Builder::build_response()
-{
-    std::string body_content;
-    std::string content_type = "text/plain";
-    int status_code = 200;
-    std::string reason_phrase = "OK";
-    bool connection_close = true;
-
-    try
+    // 메소드별 처리
+    if (method == "GET")
     {
-        // 1. 메서드 분기 및 처리
-        if (m_request.get_method() == "GET") {
-            body_content = handle_get();
-            content_type = get_mime_type(m_request.get_uri());
-        } else if (m_request.get_method() == "POST") {
-            body_content = handle_post();
-            status_code = 201; reason_phrase = "Created";
-            content_type = "text/plain";
-        } else if (m_request.get_method() == "DELETE") {
-            handle_delete(); 
-        } else {
-            throw std::runtime_error("405"); // Method Not Allowed
-        }
-        
-        std::string conn_header = m_request.get_header_value("Connection");
-        std::transform(conn_header.begin(), conn_header.end(), conn_header.begin(), ::tolower);
-        
-        if (conn_header == "keep-alive")
-            connection_close = false;
-
+        return buildFileResponse(fsPath, 200);
     }
-    catch (const std::runtime_error& e)
+    else if (method == "POST")
     {
-        std::string err_code_str = e.what();
-        status_code = std::atoi(err_code_str.c_str());
-
-        if (status_code == 204)
+        // 업로드 처리
+        const std::string *uploadPath;
+		uploadPath = 0;
+        std::string up;
+        if (loc && !loc->getUploadPath().empty())
+            up = loc->getUploadPath();
+        if (!up.empty())
         {
-            reason_phrase = "No Content";
-            body_content = "";
+            if (up[up.size() - 1] != '/')
+                up += "/";
+            std::string filename = "upload_" + toString((int)time(0)) + ".bin";
+            std::string fullPath = up + filename;
+
+            std::ofstream out(fullPath.c_str(), std::ios::out | std::ios::binary);
+            if (!out)
+                return buildErrorResponse(500, "Cannot open upload file");
+
+            out << _req.getBody();
+            out.close();
+
+            return buildSimpleResponse(201, "<html><body><h1>Uploaded</h1></body></html>");
         }
-        else 
+        else
         {
-            reason_phrase = "Error"; 
-            body_content = get_error_page_content(status_code);
-            content_type = get_mime_type(".html"); 
-            connection_close = true; 
+            // 업로드 설정 없으면 그냥 200 OK 텍스트 리턴
+            return buildSimpleResponse(200, "<html><body><h1>POST OK</h1></body></html>");
         }
     }
-    
-    m_response_content.clear();
-    build_status_line(status_code, reason_phrase);
-    
-    if (status_code != 204) 
+    else if (method == "DELETE")
     {
-        add_header("Content-Type", content_type);
-        add_header("Content-Length", std::to_string(body_content.length()));
+        if (stat(fsPath.c_str(), &st) != 0)
+            return buildErrorResponse(404, "File not found");
+
+        if (std::remove(fsPath.c_str()) != 0)
+            return buildErrorResponse(500, "Delete failed");
+
+        return buildSimpleResponse(200, "<html><body><h1>Deleted</h1></body></html>");
     }
-    
-    if (connection_close)
-        add_header("Connection", "close"); 
-    else
-        add_header("Connection", "keep-alive"); 
 
-    add_header("Server", "Webserv/1.0");
-
-    if (status_code != 204)
-        add_body(body_content);
-
-    return m_response_content;
+    return buildErrorResponse(500, "Unhandled case");
 }

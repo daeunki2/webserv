@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<title>Webserv · Page de test 🇫🇷</title>
+<style>
+    body {
+        margin: 0;
+        padding: 0;
+        font-family: "Inter", -apple-system, system-ui, sans-serif;
+        background: linear-gradient(135deg, #1f1f33, #2f1f42);
+        color: #fff;
+    }
+
+    header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 18px 30px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+        background: rgba(0,0,0,0.15);
+        backdrop-filter: blur(6px);
+    }
+
+    .title {
+        font-size: 26px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+    }
+
+    /* language switch */
+    .lang-switch {
+        display: flex;
+        gap: 10px;
+    }
+    .lang-switch button {
+        background: rgba(255,255,255,0.1);
+        border: none;
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 12px;
+        transition: 0.2s;
+    }
+    .lang-switch button:hover {
+        background: rgba(255,255,255,0.22);
+    }
+
+    main {
+        max-width: 900px;
+        margin: 40px auto;
+        text-align: center;
+        padding: 0 24px;
+    }
+
+    .card {
+        background: rgba(15,15,30,0.55);
+        border: 1px solid rgba(255,255,255,0.1);
+        padding: 32px;
+        border-radius: 20px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.4);
+        backdrop-filter: blur(8px);
+    }
+
+    h2 {
+        margin-top: 0;
+        font-size: 24px;
+        margin-bottom: 8px;
+    }
+    p {
+        font-size: 15px;
+        opacity: .9;
+        line-height: 1.55;
+    }
+
+    .method-grid {
+        margin-top: 30px;
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    }
+
+    .method-btn {
+        padding: 16px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.12);
+        color: #fff;
+        border-radius: 14px;
+        font-size: 15px;
+        cursor: pointer;
+        transition: 0.2s ease;
+    }
+    .method-btn:hover {
+        background: rgba(255,255,255,0.18);
+    }
+
+    .response-box {
+        margin-top: 30px;
+        padding: 16px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 12px;
+        text-align: left;
+        white-space: pre-wrap;
+        font-family: monospace;
+        font-size: 13px;
+    }
+</style>
+</head>
+
+<body>
+<header>
+    <div class="title">Webserv · Page de test</div>
+
+    <div class="lang-switch">
+        <button onclick="changeLang('fr')">FR</button>
+        <button onclick="changeLang('en')">EN</button>
+        <button onclick="changeLang('kr')">KR</button>
+    </div>
+</header>
+
+<main>
+    <section class="card" id="content-box">
+        <h2 id="title">Bienvenue 👋</h2>
+        <p id="description">
+            Ceci est la page officielle de test de votre serveur <strong>webserv</strong>.  
+            Utilisez les boutons ci-dessous pour envoyer différentes requêtes HTTP.
+        </p>
+
+        <div class="method-grid">
+            <!-- GET = croissant test -->
+            <button class="method-btn" onclick="sendCroissant()">GET croissant 🥐</button>
+
+            <!-- Other methods -->
+            <button class="method-btn" onclick="sendRequest('POST')">POST</button>
+            <button class="method-btn" onclick="sendRequest('DELETE')">DELETE</button>
+            <button class="method-btn" onclick="sendRequest('PUT')">PUT</button>
+        </div>
+
+        <div class="response-box" id="response-display">
+            → Cliquez sur un bouton pour voir la réponse HTTP ici.
+        </div>
+    </section>
+</main>
+
+<script>
+/* Language switching */
+const translations = {
+    fr: {
+        title: "Bienvenue 👋",
+        desc: "Ceci est la page officielle de test de votre serveur webserv."
+    },
+    en: {
+        title: "Welcome 👋",
+        desc: "This is the official test page of your webserv."
+    },
+    kr: {
+        title: "환영합니다 👋",
+        desc: "이 페이지는 webserv 테스트 페이지입니다."
+    }
+};
+
+function changeLang(lang) {
+    document.getElementById("title").innerText = translations[lang].title;
+    document.getElementById("description").innerText = translations[lang].desc;
+}
+
+/* GET croissant.png */
+function sendCroissant() {
+    fetch("/croissant.png", { method: "GET" })
+        .then(res => {
+            if (!res.ok) {
+                document.getElementById("response-display").innerText =
+                    `GET /croissant.png → status ${res.status}`;
+                return;
+            }
+            return res.blob();
+        })
+        .then(blob => {
+            if (!blob) return;
+            const imgURL = URL.createObjectURL(blob);
+            document.getElementById("response-display").innerHTML =
+                `<h3>GET /croissant.png → status 200</h3>
+                 <img src="${imgURL}" style="max-width:260px; border-radius:12px; margin-top:10px;">`;
+        })
+        .catch(err => {
+            document.getElementById("response-display").innerText =
+                `Error: ${err}`;
+        });
+}
+
+/* Other HTTP methods */
+function sendRequest(method) {
+    fetch("/", { method: method })
+        .then(res =>
+            res.text().then(text => {
+                document.getElementById("response-display").innerText =
+                    `${method} / → status ${res.status}\n\n` + text;
+            })
+        )
+        .catch(err => {
+            document.getElementById("response-display").innerText =
+                `Error: ${err}`;
+        });
+}
+</script>
+
+</body>
+</html>

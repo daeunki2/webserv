@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/23 19:03:30 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/10/30 11:18:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:23:08 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,79 +25,54 @@ Header	Connection	연결을 유지(keep-alive)할지 요청 처리 후 즉시 �
 */
 
 #ifndef HTTP_REQUEST_HPP
-#define HTTP_REQUEST_HPP
+# define HTTP_REQUEST_HPP
 
-#include <string>
-#include <map>
-#include <algorithm> // for std::transform
-#include <cctype>    // for ::tolower
-#include <iostream>
-class http_request
+# include <string>
+# include <map>
+
+class HttpRequest
 {
-private:
-    std::string m_method;
-    std::string m_uri_path;
-    std::string m_query_string; // 쿼리 스트링 (? 이후)
-    std::string m_version;      // HTTP/1.1
-    std::map<std::string, std::string> m_headers; // 헤더 키는 소문자로 저장
-    std::string m_body;
-
-    long long   m_content_length;
-    bool        m_is_chunked;
-
-    // Helper: 문자열을 소문자로 변환
-    static std::string to_lower(const std::string& str);
-
 public:
-    http_request();
-    http_request(const http_request& src);
-    http_request& operator=(const http_request& src);
-    ~http_request();
+    HttpRequest();
+    HttpRequest(const HttpRequest &o);
+    HttpRequest &operator=(const HttpRequest &o);
+    ~HttpRequest();
 
-    // Getter
-    const std::string &get_method() const;
-    const std::string &get_uri_path() const;
-    const std::string &get_query_string() const;
-    const std::string &get_version() const;
-    const std::map<std::string, std::string> &get_headers() const;
-    const std::string &get_body() const;
-    long long get_content_length() const;    
-    const std::string get_header_value(const std::string &key) const;
+    /* setters */
+    void setMethod(const std::string &m);
+    void setUri(const std::string &u);
+    void setPath(const std::string &p);
+    void setQuery(const std::string &q);
+    void setVersion(const std::string &v);
+    void addHeader(const std::string &key, const std::string &value);
+    void setBody(const std::string &b);
+    void appendBody(const std::string &b);
+    void setKeepAlive(bool k);
 
-    // Setter
-    void set_method(const std::string &method);
-    void set_uri_path(const std::string &path);
-    void set_query_string(const std::string &query);
-    void set_version(const std::string &version);
-    void set_content_length(long long length);
-    void set_is_chunked(bool chunked);
+    /* getters */
+    const std::string &getMethod() const;
+    const std::string &getUri() const;
+    const std::string &getPath() const;
+    const std::string &getQuery() const;
+    const std::string &getVersion() const;
+    const std::map<std::string, std::string> &getHeaders() const;
+    const std::string &getBody() const;
+    bool getKeepAlive() const;
 
-	void add_header(const std::string &key, const std::string &value);
-    void append_body(const std::string &data); // body는 누적되어 추가될 수 있음
-    bool is_chunked() const;
-    void reset();
+    /* helpers */
+    bool hasHeader(const std::string &key) const;
+    std::string getHeader(const std::string &key) const;
 
+private:
+    std::string                           _method;
+    std::string                           _uri;
+    std::string                           _path;
+    std::string                           _query;
+    std::string                           _version;
+    std::map<std::string, std::string>    _headers;
+    std::string                           _body;
+    bool                                  _keepAlive;
 };
 
 #endif
 
-/*
-// ** Test Output (인자 개수 오류 수정) **
-    void print_parsed_data(const std::string& type) const
-    {
-        std::cout << "\n--- 🔍 " << type << " 파싱된 HTTP 요청 데이터 ---" << std::endl;
-        std::cout << "  Method: " << m_method << std::endl;
-        std::cout << "  URI Path: " << m_uri_path << std::endl;
-        std::cout << "  Query: " << m_query_string << std::endl;
-        std::cout << "  Version: " << m_version << std::endl;
-        std::cout << "  Content-Length: " << m_content_length << std::endl;
-        std::cout << "  is_chunked: " << (m_is_chunked ? "true" : "false") << std::endl;
-        std::cout << "  Headers (" << m_headers.size() << "):" << std::endl;
-        for (std::map<std::string, std::string>::const_iterator it = m_headers.begin(); it != m_headers.end(); ++it) {
-            // 헤더 키는 소문자로 저장되었음을 출력
-            std::cout << "    [" << it->first << "]: [" << it->second << "]" << std::endl;
-        }
-        std::cout << "  Body (" << m_body.size() << " bytes):\n" << m_body.substr(0, std::min((size_t)200, m_body.size())) << (m_body.size() > 200 ? "..." : "") << std::endl;
-        std::cout << "-----------------------------------" << std::endl;
-    }
-*/

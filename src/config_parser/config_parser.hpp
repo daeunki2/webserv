@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 14:54:17 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/20 10:49:18 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -32,17 +32,20 @@ private:
     std::vector<std::string> _lines;
     std::vector<std::string> _tokens;
     size_t _i;
-
+	std::vector<Server> _servers;
+	
 public:
     // Canonical form
     ConfigParser();
+	ConfigParser(const std::string &file);
     ConfigParser(const ConfigParser &o);
     ConfigParser &operator=(const ConfigParser &o);
     ~ConfigParser();
 
-    std::vector<Server> parse(const std::string &path);
+	void	parse(const std::string &path);
+	const std::vector<Server> &getServers() const;
 
-private:
+	private:
     /* tokenizer */
     void tokenize();
     bool hasNext();
@@ -52,11 +55,9 @@ private:
     bool consume(const std::string &t);
 
     /* blocks */
-    void parseServerBlock(std::vector<Server> &servers);
+    void parseServerBlock();
     void parseLocationBlock(Server &srv);
 
-    /* helpers */
-    int toIntChecked(const std::string &s);
 };
 
 #endif

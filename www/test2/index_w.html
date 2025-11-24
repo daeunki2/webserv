@@ -2,28 +2,27 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<title>Webserv · Serveur Blanc</title>
+<title>Webserv · White Server (Cheese)</title>
 <style>
     body {
         margin: 0; padding: 0;
         font-family: "Inter", sans-serif;
-        background: linear-gradient(135deg, #ffffff, #f2f2f2, #e9e9e9);
-        color: #222;
+        background: linear-gradient(135deg, #ffffff, #f7f7f7, #eaeaea);
+        color: #333;
     }
 
     header {
         display: flex; justify-content: space-between; align-items: center;
         padding: 18px 30px;
-        border-bottom: 1px solid #ccc;
-        background: rgba(255,255,255,0.7);
-        backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(0,0,0,0.1);
+        background: rgba(255,255,255,0.85);
+        backdrop-filter: blur(6px);
     }
 
-    .title { font-size: 26px; font-weight: 600; color: #333; }
+    .title { font-size: 26px; font-weight: 600; color: #222; }
 
-    .lang-switch { display: flex; gap: 10px; }
     .lang-switch button {
-        background: #f8f8f8;
+        background: #ffffff;
         border: 1px solid #ccc;
         color: #333;
         padding: 6px 12px;
@@ -31,55 +30,66 @@
         cursor: pointer; font-size: 12px;
         transition: 0.2s;
     }
-    .lang-switch button:hover { background: #eee; }
+    .lang-switch button:hover {
+        background: #eee;
+    }
 
     main { max-width: 900px; margin: 40px auto; text-align: center; padding: 0 24px; }
 
     .card {
-        background: #ffffffee;
+        background: #ffffff;
         border: 1px solid #ddd;
         padding: 32px; border-radius: 20px;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     }
 
-    h2 { margin-top: 0; font-size: 26px; }
-    p { font-size: 15px; opacity: .85; }
+    h2 { margin-top: 0; font-size: 26px; color: #111; }
+    p { font-size: 15px; opacity: .9; }
 
     .method-grid {
-        margin-top: 30px;
-        display: grid; gap: 20px;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        margin-top: 30px; display: grid; gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
 
     .method-btn {
         padding: 16px;
-        background: #f4f4f4;
-        border: 1px solid #bbb;
+        background: #fafafa;
+        border: 1px solid #ccc;
         color: #222;
-        border-radius: 14px;
-        font-size: 15px;
-        cursor: pointer;
-        transition: 0.2s;
+        border-radius: 14px; font-size: 15px;
+        cursor: pointer; transition: 0.2s;
     }
-    .method-btn:hover { background: #e3e3e3; }
+    .method-btn:hover {
+        background: #eaeaea;
+    }
 
     .response-box {
         margin-top: 30px;
         padding: 16px;
-        background: #fafafa;
+        background: #f3f3f3;
         border: 1px solid #ccc;
         border-radius: 12px;
         text-align: left;
         white-space: pre-wrap;
         font-family: monospace;
         font-size: 13px;
+        color: #111;
+    }
+
+    .input-box input[type="text"],
+    .input-box input[type="file"] {
+        padding: 8px;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        color: #111;
     }
 </style>
 </head>
 
 <body>
 <header>
-    <div class="title">Serveur Blanc</div>
+    <div class="title" id="title">Serveur Blanc (Cheese)</div>
     <div class="lang-switch">
         <button onclick="changeLang('fr')">FR</button>
         <button onclick="changeLang('en')">EN</button>
@@ -88,59 +98,114 @@
 </header>
 
 <main>
-    <section class="card" id="content-box">
-        <h2 id="title">Bienvenue 🧀</h2>
-        <p id="description">Serveur de test blanc – spécial fromage français.</p>
+    <section class="card">
+        <h2 id="subtitle">Bienvenue 🧀</h2>
+        <p id="description">Serveur blanc – Webserv démo.</p>
 
         <div class="method-grid">
-            <button class="method-btn" onclick="sendImage()">GET fromage 🧀</button>
-            <button class="method-btn" onclick="sendRequest('POST')">POST</button>
-            <button class="method-btn" onclick="sendRequest('DELETE')">DELETE</button>
-            <button class="method-btn" onclick="sendRequest('PUT')">PUT</button>
+            <button class="method-btn" onclick="sendImage()">GET cheese 🧀</button>
+            <button class="method-btn" onclick="showPostForm()">POST Upload</button>
+            <button class="method-btn" onclick="showDeleteForm()">DELETE File</button>
+            <button class="method-btn" onclick="sendCGI()">CGI Test</button>
         </div>
+
+        <div id="extra-ui"></div>
 
         <div class="response-box" id="response-display">
             → Cliquez sur un bouton pour voir la réponse HTTP ici.
         </div>
     </section>
 </main>
-
 <script>
-const translations = {
-    fr: { title: "Bienvenue 🧀", desc: "Serveur de test blanc – spécial fromage français." },
-    en: { title: "Welcome 🧀", desc: "White test server – French cheese edition." },
-    kr: { title: "환영합니다 🧀", desc: "흰색 서버 – 치즈 테스트 페이지." }
-};
-
+/* Same JS as Blue version — only GET image path changes */
 function changeLang(lang) {
-    document.getElementById("title").innerText = translations[lang].title;
-    document.getElementById("description").innerText = translations[lang].desc;
+    const t = {
+        fr: {title:"Serveur Blanc (Cheese)",subtitle:"Bienvenue 🧀",desc:"Serveur blanc – Webserv démo.",
+            deleteLabel:"DELETE chemin (ex: /upload/test.txt)",
+            postLabel:"Upload fichier → POST /upload"},
+        en: {title:"White Server (Cheese)",subtitle:"Welcome 🧀",desc:"White server – Webserv demo.",
+            deleteLabel:"DELETE path (ex: /upload/test.txt)",
+            postLabel:"Upload file → POST /upload"},
+        kr: {title:"하얀 서버 (치즈)",subtitle:"환영합니다 🧀",desc:"화이트 서버 – Webserv 테스트 페이지.",
+            deleteLabel:"삭제할 경로 (예: /upload/test.txt)",
+            postLabel:"업로드 파일 → POST /upload"}
+    }[lang];
+
+    document.getElementById("title").innerText = t.title;
+    document.getElementById("subtitle").innerText = t.subtitle;
+    document.getElementById("description").innerText = t.desc;
+
+    const del = document.getElementById("delete-label");
+    const post = document.getElementById("post-label");
+    if (del) del.innerText = t.deleteLabel;
+    if (post) post.innerText = t.postLabel;
 }
 
 function sendImage() {
     fetch("/images/cheese.jpeg", { method: "GET" })
-        .then(res => res.blob().then(b => ({status: res.status, blob: b})))
+        .then(res => res.blob().then(b => ({status: res.status, blob:b})))
         .then(({status, blob}) => {
-            if (!blob) {
-                document.getElementById("response-display").innerText =
-                    `GET /images/cheese.jpeg → status ${status}`;
-                return;
-            }
+            const box = document.getElementById("response-display");
+
             const url = URL.createObjectURL(blob);
-            document.getElementById("response-display").innerHTML =
-                `<h3>GET /images/cheese.jpeg → status ${status}</h3>
-                 <img src="${url}" style="max-width:260px; border-radius:12px; margin-top:10px;">`;
+
+            box.innerHTML = `
+                <div style="display:flex; justify-content:flex-end;">
+                    <button onclick="resetResponse()" 
+                        style="background:transparent; border:none; color:#555; font-size:18px; cursor:pointer;">
+                        ✖
+                    </button>
+                </div>
+                <h3>GET /images/cheese.jpeg → status ${status}</h3>
+                <img src="${url}" 
+                    style="max-width:260px; border-radius:12px; margin-top:10px; box-shadow:0 8px 20px rgba(0,0,0,0.15);">
+            `;
         });
 }
 
-function sendRequest(method) {
-    fetch("/", { method })
-        .then(res => res.text().then(t => {
+function sendCGI() {
+    fetch("/cgi-bin/test.py")
+        .then(r=>r.text().then(t=>{
             document.getElementById("response-display").innerText =
-                `${method} / → status ${res.status}\n\n` + t;
+                `CGI GET /cgi-bin/test.py → status ${r.status}\n\n${t}`;
+        }));
+}
+
+/* POST/DELETE identical to blue version */
+function showPostForm() {
+    document.getElementById("extra-ui").innerHTML =
+        `<div class="input-box">
+            <label id="post-label">Upload file → POST /upload</label>
+            <input id="post-file" type="file">
+            <button class="method-btn" onclick="sendPost()">Upload</button>
+        </div>`;
+}
+function sendPost() {
+    const file = document.getElementById("post-file").files[0];
+    const form = new FormData();
+    form.append("file", file);
+    fetch("/upload",{method:"POST",body:form})
+        .then(r=>r.text().then(t=>{
+            document.getElementById("response-display").innerText =
+                `POST /upload → ${r.status}\n\n${t}`;
+        }));
+}
+function showDeleteForm() {
+    document.getElementById("extra-ui").innerHTML =
+        `<div class="input-box">
+            <label id="delete-label">DELETE path (ex: /upload/file.txt)</label>
+            <input id="delete-path" type="text">
+            <button class="method-btn" onclick="sendDelete()">Delete</button>
+        </div>`;
+}
+function sendDelete() {
+    const path=document.getElementById("delete-path").value;
+    fetch(path,{method:"DELETE"})
+        .then(r=>r.text().then(t=>{
+            document.getElementById("response-display").innerText =
+                `DELETE ${path} → ${r.status}\n\n${t}`;
         }));
 }
 </script>
-
 </body>
 </html>

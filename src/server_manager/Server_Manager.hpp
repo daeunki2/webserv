@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/29 14:16:11 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 10:00:13 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/24 10:08:35 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -29,6 +29,7 @@
 # include <ctime>
 # include <netinet/in.h>
 # include <sys/socket.h>
+#include <signal.h>
 
 # include "Server.hpp"
 # include "Client.hpp"
@@ -47,6 +48,9 @@
 # ifndef TIMEOUT_MS
 #  define TIMEOUT_MS 1000   // poll timeout 1s
 # endif
+
+extern volatile sig_atomic_t g_running;
+void signal_handler(int);
 
 class Server_Manager
 {

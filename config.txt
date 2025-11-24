@@ -1,3 +1,4 @@
+
 server {
     listen 8080;
     server_name bread;
@@ -11,9 +12,10 @@ server {
     location /upload {
         root /home/daeunki2/Desktop/webserv/www/test1/upload;
         autoindex on;
-        upload /tmp/uploads;
+        upload /home/daeunki2/Desktop/webserv/www/test1/upload;
     }
 }
+
 
 server {
     listen 8181;
@@ -28,9 +30,11 @@ server {
     location /upload {
         root /home/daeunki2/Desktop/webserv/www/test2/upload;
         autoindex on;
-        upload /tmp/uploads;
+        upload /home/daeunki2/Desktop/webserv/www/test2/upload;
     }
 }
+
+
 
 server {
     listen 8282;
@@ -45,6 +49,6 @@ server {
     location /upload {
         root /home/daeunki2/Desktop/webserv/www/test3/upload;
         autoindex on;
-        upload /tmp/uploads;
+        upload /home/daeunki2/Desktop/webserv/www/test3/upload;
     }
 }

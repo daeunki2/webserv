@@ -6,7 +6,7 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/11/20 18:55:45 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/11/24 10:00:50 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -24,7 +24,7 @@ SRC_DIR = src
 INC_DIR = inc
 
 
-SRCS = $(SRC_DIR)/test.cpp \
+SRCS = $(SRC_DIR)/main.cpp \
 		$(SRC_DIR)/config_parser/config_parser.cpp \
 		$(SRC_DIR)/config_parser/Location.cpp \
 		$(SRC_DIR)/config_parser/Server.cpp \

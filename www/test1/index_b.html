@@ -2,118 +2,103 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<title>Webserv · Page de test 🇫🇷</title>
+<title>Webserv · Blue Server</title>
 <style>
     body {
-        margin: 0;
-        padding: 0;
-        font-family: "Inter", -apple-system, system-ui, sans-serif;
-        background: linear-gradient(135deg, #1b2a40, #243b55, #1f2f46);
-        color: #e9f1ff;
+        margin: 0; padding: 0;
+        font-family: "Inter", sans-serif;
+        background: linear-gradient(135deg, #0a1a2f, #0f2740, #081421);
+        color: #e6f1ff;
     }
 
     header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
+        display: flex; justify-content: space-between; align-items: center;
         padding: 18px 30px;
         border-bottom: 1px solid rgba(255,255,255,0.1);
-        background: rgba(0,0,40,0.25);
+        background: rgba(0,40,80,0.4);
         backdrop-filter: blur(6px);
     }
 
-    .title {
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-        color: #d6e6ff;
-    }
+    .title { font-size: 26px; font-weight: 600; color: #d8eaff; }
 
-    /* language switch */
     .lang-switch {
-        display: flex;
-        gap: 10px;
+        display: flex; gap: 10px;
     }
     .lang-switch button {
-        background: rgba(255,255,255,0.12);
+        background: rgba(180,220,255,0.1);
         border: 1px solid rgba(255,255,255,0.15);
-        color: #e9f1ff;
+        color: #e4f3ff;
         padding: 6px 12px;
         border-radius: 8px;
-        cursor: pointer;
-        font-size: 12px;
+        cursor: pointer; font-size: 12px;
         transition: 0.2s;
     }
     .lang-switch button:hover {
-        background: rgba(255,255,255,0.25);
+        background: rgba(240,240,255,0.3);
     }
 
-    main {
-        max-width: 900px;
-        margin: 40px auto;
-        text-align: center;
-        padding: 0 24px;
-    }
+    main { max-width: 900px; margin: 40px auto; text-align: center; padding: 0 24px; }
 
     .card {
-        background: rgba(25, 45, 75, 0.55);
+        background: rgba(0,40,80,0.55);
         border: 1px solid rgba(255,255,255,0.12);
-        padding: 32px;
-        border-radius: 20px;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        padding: 32px; border-radius: 20px;
+        box-shadow: 0 10px 35px rgba(0,0,0,0.5);
         backdrop-filter: blur(10px);
     }
 
-    h2 {
-        margin-top: 0;
-        font-size: 26px;
-        color: #dce7ff;
-    }
-    p {
-        font-size: 15px;
-        opacity: .88;
-        line-height: 1.55;
-    }
+    h2 { margin-top: 0; font-size: 26px; color: #e6f3ff; }
+    p { font-size: 15px; opacity: .9; }
 
     .method-grid {
-        margin-top: 30px;
-        display: grid;
-        gap: 20px;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        margin-top: 30px; display: grid; gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     }
 
     .method-btn {
         padding: 16px;
-        background: rgba(255,255,255,0.10);
-        border: 1px solid rgba(255,255,255,0.14);
-        color: #e9f1ff;
-        border-radius: 14px;
-        font-size: 15px;
-        cursor: pointer;
-        transition: 0.2s;
+        background: rgba(150,200,255,0.10);
+        border: 1px solid rgba(255,255,255,0.15);
+        color: #eaf6ff;
+        border-radius: 14px; font-size: 15px;
+        cursor: pointer; transition: 0.2s;
     }
     .method-btn:hover {
-        background: rgba(255,255,255,0.20);
+        background: rgba(140,180,255,0.25);
     }
 
     .response-box {
         margin-top: 30px;
         padding: 16px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(150,200,255,0.08);
+        border: 1px solid rgba(255,255,255,0.18);
         border-radius: 12px;
         text-align: left;
         white-space: pre-wrap;
         font-family: monospace;
         font-size: 13px;
     }
+
+    .input-box {
+        margin-top: 20px;
+        display: flex; flex-direction: column; gap: 10px;
+        text-align: left;
+    }
+
+    .input-box input[type="text"],
+    .input-box input[type="file"] {
+        padding: 8px;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 6px;
+        color: #eaf6ff;
+    }
 </style>
 </head>
 
 <body>
 <header>
-    <div class="title">Webserv · Page de test</div>
-
+    <div class="title" id="title">Serveur Bleu</div>
     <div class="lang-switch">
         <button onclick="changeLang('fr')">FR</button>
         <button onclick="changeLang('en')">EN</button>
@@ -123,284 +108,171 @@
 
 <main>
     <section class="card" id="content-box">
-        <h2 id="title">Bienvenue 👋</h2>
-        <p id="description">
-            Ceci est la page officielle de test de votre serveur <strong>webserv</strong>.  
-            Utilisez les boutons ci-dessous pour envoyer différentes requêtes HTTP.
-        </p>
+        <h2 id="subtitle">Bienvenue 🌊</h2>
+        <p id="description">Serveur de test bleu – Webserv demo page.</p>
 
         <div class="method-grid">
             <button class="method-btn" onclick="sendImage()">GET croissant 🥐</button>
-            <button class="method-btn" onclick="sendRequest('POST')">POST</button>
-            <button class="method-btn" onclick="sendRequest('DELETE')">DELETE</button>
-            <button class="method-btn" onclick="sendRequest('PUT')">PUT</button>
+            <button class="method-btn" onclick="showPostForm()">POST Upload</button>
+            <button class="method-btn" onclick="showDeleteForm()">DELETE File</button>
+            <button class="method-btn" onclick="sendCGI()">CGI Test</button>
         </div>
 
+        <div id="extra-ui"></div>
+
         <div class="response-box" id="response-display">
-            → Cliquez sur un bouton pour voir la réponse HTTP ici.
+            → Clique sur un bouton pour voir la réponse HTTP ici.
         </div>
     </section>
 </main>
 
 <script>
+/* ---------------- LANGUAGE DATA ---------------- */
 const translations = {
-    fr: { title: "Bienvenue 👋", desc: "Ceci est la page officielle de test de votre serveur webserv." },
-    en: { title: "Welcome 👋", desc: "This is the official test page of your webserv." },
-    kr: { title: "환영합니다 👋", desc: "이 페이지는 webserv 테스트 페이지입니다." }
+    fr: {
+        title: "Serveur Bleu",
+        subtitle: "Bienvenue 🌊",
+        desc: "Serveur de test bleu – Page de démonstration Webserv.",
+        deleteLabel: "DELETE chemin (ex: /upload/test.txt)",
+        postLabel: "Upload fichier → POST /upload",
+        baguetteLabel: "Euro → Baguette"
+    },
+    en: {
+        title: "Blue Server",
+        subtitle: "Welcome 🌊",
+        desc: "Blue test server – Webserv demo page.",
+        deleteLabel: "DELETE path (ex: /upload/test.txt)",
+        postLabel: "Upload file → POST /upload",
+        baguetteLabel: "Euro → Baguette"
+    },
+    kr: {
+        title: "푸른 서버",
+        subtitle: "환영합니다 🌊",
+        desc: "푸른 서버 – Webserv 테스트 페이지.",
+        deleteLabel: "삭제할 경로 (예: /upload/test.txt)",
+        postLabel: "업로드 파일 → POST /upload",
+        baguetteLabel: "유로 → 바게트"
+    }
 };
 
 function changeLang(lang) {
-    document.getElementById("title").innerText = translations[lang].title;
-    document.getElementById("description").innerText = translations[lang].desc;
+    const t = translations[lang];
+    document.getElementById("title").innerText = t.title;
+    document.getElementById("subtitle").innerText = t.subtitle;
+    document.getElementById("description").innerText = t.desc;
+
+    const deleteInput = document.getElementById("delete-label");
+    const postLabel = document.getElementById("post-label");
+    const baguette = document.getElementById("baguette-label");
+
+    if (deleteInput) deleteInput.innerText = t.deleteLabel;
+    if (postLabel) postLabel.innerText = t.postLabel;
+    if (baguette) baguette.innerText = t.baguetteLabel;
+}
+
+/* ---------- GET IMAGE ---------- */
+function resetResponse() {
+    document.getElementById("response-display").innerHTML =
+        `→ Cliquez sur un bouton pour voir la réponse HTTP ici.`;
 }
 
 function sendImage() {
     fetch("/images/croissant.png", { method: "GET" })
-        .then(res => {
-            if (!res.ok) {
-                document.getElementById("response-display").innerText =
-                    `GET /images/croissant.png → status ${res.status}`;
-                return null;
-            }
-            return res.blob();
-        })
-        .then(blob => {
-            if (!blob) return;
-            const imgURL = URL.createObjectURL(blob);
-            document.getElementById("response-display").innerHTML =
-                `<h3>GET /images/croissant.png → status 200</h3>
-                 <img src="${imgURL}" style="max-width:260px; border-radius:12px; margin-top:10px;">`;
-        })
-        .catch(err => {
-            document.getElementById("response-display").innerText = `Error: ${err}`;
+        .then(res => res.blob().then(b => ({status: res.status, blob:b})))
+        .then(({status, blob}) => {
+            const box = document.getElementById("response-display");
+
+            const url = URL.createObjectURL(blob);
+
+            box.innerHTML = `
+                <div style="display:flex; justify-content:flex-end;">
+                    <button onclick="resetResponse()" 
+                        style="background:transparent; border:none; color:#aac8ff; font-size:18px; cursor:pointer;">
+                        ✖
+                    </button>
+                </div>
+                <h3>GET /images/croissant.png → status ${status}</h3>
+                <img src="${url}" 
+                    style="max-width:260px; border-radius:12px; margin-top:10px;">
+            `;
         });
 }
 
-function sendRequest(method) {
-    fetch("/", { method: method })
-        .then(res =>
-            res.text().then(text => {
-                document.getElementById("response-display").innerText =
-                    `${method} / → status ${res.status}\n\n` + text;
-            })
-        )
-        .catch(err => {
-            document.getElementById("response-display").innerText = `Error: ${err}`;
-        });
+/* ---------- CGI UI FORM ---------- */
+function sendCGI() {
+    document.getElementById("extra-ui").innerHTML = `
+        <div class="input-box">
+            <label id="baguette-label">Euro → Baguette</label>
+            <input type="text" id="baguette-input" placeholder="3">
+            <button class="method-btn" onclick="runBaguetteCGI()">Convert</button>
+        </div>
+
+        <div id="baguette-result"
+             style="margin-top:20px; padding:12px; background:rgba(150,200,255,0.08);
+                    border:1px solid rgba(255,255,255,0.18); border-radius:12px;
+                    display:none; white-space:pre-wrap;">
+        </div>
+    `;
+}
+
+/* ---------- EXECUTE CGI ---------- */
+function runBaguetteCGI() {
+    const v = document.getElementById("baguette-input").value;
+
+    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}`, { method: "GET" })
+        .then(res => res.text().then(t => {
+            const resultBox = document.getElementById("baguette-result");
+
+            resultBox.style.display = "block";
+            resultBox.innerHTML =
+                `<strong>Input:</strong> ${v}€<br><br>
+                 <strong>Result:</strong> ${t}`;
+        }));
+}
+/* ---------- POST FORM ---------- */
+function showPostForm() {
+    document.getElementById("extra-ui").innerHTML = `
+        <div class="input-box">
+            <label id="post-label">Upload file → POST /upload</label>
+            <input type="file" id="post-file">
+            <button class="method-btn" onclick="sendPost()">Upload</button>
+        </div>
+    `;
+}
+
+function sendPost() {
+    const file = document.getElementById("post-file").files[0];
+    const form = new FormData();
+    form.append("file", file);
+
+    fetch("/upload", { method: "POST", body: form })
+        .then(res => res.text().then(t => {
+            document.getElementById("response-display").innerText =
+                `POST /upload → status ${res.status}\n\n${t}`;
+        }));
+}
+
+/* ---------- DELETE FORM ---------- */
+function showDeleteForm() {
+    document.getElementById("extra-ui").innerHTML = `
+        <div class="input-box">
+            <label id="delete-label">DELETE path (ex: /upload/test.txt)</label>
+            <input type="text" id="delete-path" placeholder="/upload/test.txt">
+            <button class="method-btn" onclick="sendDelete()">Delete</button>
+        </div>
+    `;
+}
+
+function sendDelete() {
+    const path = document.getElementById("delete-path").value;
+
+    fetch(path, { method: "DELETE" })
+        .then(res => res.text().then(t => {
+            document.getElementById("response-display").innerText =
+                `DELETE ${path} → status ${res.status}\n\n${t}`;
+        }));
 }
 </script>
 
 </body>
 </html>
-
-
-<!-- <!DOCTYPE html>
-<html lang="fr">
-<head>
-<meta charset="UTF-8" />
-<title>Webserv · Page de test 🇫🇷</title>
-<style>
-    body {
-        margin: 0;
-        padding: 0;
-        font-family: "Inter", -apple-system, system-ui, sans-serif;
-        background: linear-gradient(135deg, #1f1f33, #2f1f42);
-        color: #fff;
-    }
-
-    header {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 18px 30px;
-        border-bottom: 1px solid rgba(255,255,255,0.1);
-        background: rgba(0,0,0,0.15);
-        backdrop-filter: blur(6px);
-    }
-
-    .title {
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: 0.04em;
-    }
-
-    /* language switch */
-    .lang-switch {
-        display: flex;
-        gap: 10px;
-    }
-    .lang-switch button {
-        background: rgba(255,255,255,0.1);
-        border: none;
-        color: #fff;
-        padding: 6px 12px;
-        border-radius: 8px;
-        cursor: pointer;
-        font-size: 12px;
-        transition: 0.2s;
-    }
-    .lang-switch button:hover {
-        background: rgba(255,255,255,0.22);
-    }
-
-    main {
-        max-width: 900px;
-        margin: 40px auto;
-        text-align: center;
-        padding: 0 24px;
-    }
-
-    .card {
-        background: rgba(15,15,30,0.55);
-        border: 1px solid rgba(255,255,255,0.1);
-        padding: 32px;
-        border-radius: 20px;
-        box-shadow: 0 10px 35px rgba(0,0,0,0.4);
-        backdrop-filter: blur(8px);
-    }
-
-    h2 {
-        margin-top: 0;
-        font-size: 24px;
-        margin-bottom: 8px;
-    }
-    p {
-        font-size: 15px;
-        opacity: .9;
-        line-height: 1.55;
-    }
-
-    .method-grid {
-        margin-top: 30px;
-        display: grid;
-        gap: 20px;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-    }
-
-    .method-btn {
-        padding: 16px;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.12);
-        color: #fff;
-        border-radius: 14px;
-        font-size: 15px;
-        cursor: pointer;
-        transition: 0.2s ease;
-    }
-    .method-btn:hover {
-        background: rgba(255,255,255,0.18);
-    }
-
-    .response-box {
-        margin-top: 30px;
-        padding: 16px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.12);
-        border-radius: 12px;
-        text-align: left;
-        white-space: pre-wrap;
-        font-family: monospace;
-        font-size: 13px;
-    }
-</style>
-</head>
-
-<body>
-<header>
-    <div class="title">Webserv · Page de test</div>
-
-    <div class="lang-switch">
-        <button onclick="changeLang('fr')">FR</button>
-        <button onclick="changeLang('en')">EN</button>
-        <button onclick="changeLang('kr')">KR</button>
-    </div>
-</header>
-
-<main>
-    <section class="card" id="content-box">
-        <h2 id="title">Bienvenue 👋</h2>
-        <p id="description">
-            Ceci est la page officielle de test de votre serveur <strong>webserv</strong>.  
-            Utilisez les boutons ci-dessous pour envoyer différentes requêtes HTTP.
-        </p>
-
-        <div class="method-grid">
-            <!-- GET = croissant test -->
-            <button class="method-btn" onclick="sendCroissant()">GET croissant 🥐</button>
-
-            <!-- Other methods -->
-            <button class="method-btn" onclick="sendRequest('POST')">POST</button>
-            <button class="method-btn" onclick="sendRequest('DELETE')">DELETE</button>
-            <button class="method-btn" onclick="sendRequest('PUT')">PUT</button>
-        </div>
-
-        <div class="response-box" id="response-display">
-            → Cliquez sur un bouton pour voir la réponse HTTP ici.
-        </div>
-    </section>
-</main>
-
-<script>
-/* Language switching */
-const translations = {
-    fr: {
-        title: "Bienvenue 👋",
-        desc: "Ceci est la page officielle de test de votre serveur webserv."
-    },
-    en: {
-        title: "Welcome 👋",
-        desc: "This is the official test page of your webserv."
-    },
-    kr: {
-        title: "환영합니다 👋",
-        desc: "이 페이지는 webserv 테스트 페이지입니다."
-    }
-};
-
-function changeLang(lang) {
-    document.getElementById("title").innerText = translations[lang].title;
-    document.getElementById("description").innerText = translations[lang].desc;
-}
-
-/* GET croissant.png */
-function sendCroissant() {
-    fetch("/croissant.png", { method: "GET" })
-        .then(res => {
-            if (!res.ok) {
-                document.getElementById("response-display").innerText =
-                    `GET /croissant.png → status ${res.status}`;
-                return;
-            }
-            return res.blob();
-        })
-        .then(blob => {
-            if (!blob) return;
-            const imgURL = URL.createObjectURL(blob);
-            document.getElementById("response-display").innerHTML =
-                `<h3>GET /croissant.png → status 200</h3>
-                 <img src="${imgURL}" style="max-width:260px; border-radius:12px; margin-top:10px;">`;
-        })
-        .catch(err => {
-            document.getElementById("response-display").innerText =
-                `Error: ${err}`;
-        });
-}
-
-/* Other HTTP methods */
-function sendRequest(method) {
-    fetch("/", { method: method })
-        .then(res =>
-            res.text().then(text => {
-                document.getElementById("response-display").innerText =
-                    `${method} / → status ${res.status}\n\n` + text;
-            })
-        )
-        .catch(err => {
-            document.getElementById("response-display").innerText =
-                `Error: ${err}`;
-        });
-}
-</script>
-
-</body>
-</html> -->

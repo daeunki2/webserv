@@ -6,12 +6,20 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 19:23:17 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/24 10:17:57 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
-
 #include "Server_Manager.hpp"
+/* ************************************************************************** */
+/*                           Canonical form                                   */
+/* ************************************************************************** */
+volatile sig_atomic_t g_running = 1;
+
+void signal_handler(int)
+{
+    g_running = 0;
+}
 
 /* ************************************************************************** */
 /*                           Canonical form                                   */
@@ -51,6 +59,7 @@ Server_Manager::~Server_Manager()
             close(_poll_fds[i].fd);
     }
 }
+
 
 /* ************************************************************************** */
 /*                             init_sockets                                   */
@@ -307,12 +316,21 @@ bool Server_Manager::send_response(int client_fd)
 
     sent += bytes_sent;
 
-    if (sent >= total)
+if (sent >= total)
+{
+    if (client.get_request().keep_alive())
+    {
+        client.reset();
+        update_poll_events(client_fd, POLLIN);
+        client.update_state(Client::RECVING_REQUEST);
+    }
+    else
     {
         client.update_state(Client::CONNECTION_CLOSE);
         close_connection(client_fd);
-        return true;
     }
+    return true;
+}
 
     return false;
 }
@@ -326,7 +344,7 @@ void Server_Manager::run()
 {
     Logger::info("ServerManager main loop started.");
 
-    while (true)
+    while (g_running)
     {
         check_idle_clients();
 
@@ -341,7 +359,14 @@ void Server_Manager::run()
         if (ret < 0)
         {
             if (errno == EINTR)
-                continue;
+			{
+				if (!g_running)
+				{
+					 Logger::info("ctrl + c situation. Exiting loop.");
+           			break;
+				}
+        		continue;
+			}
             Logger::error("poll() failed: " + std::string(strerror(errno)));
             break;
         }

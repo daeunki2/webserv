@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 16:02:02 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 16:27:00 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -255,8 +255,10 @@ std::string Response_Builder::buildFileResponse(const std::string &fsPath, int s
     std::ifstream f(fsPath.c_str(), std::ios::binary);
 
     if (!f)
+	{
+		Logger::warn("File not found");
         return buildErrorResponse(404, "File not found");
-
+	}
     std::ostringstream buf;
     buf << f.rdbuf();
     std::string content = buf.str();
@@ -272,8 +274,7 @@ std::string Response_Builder::buildFileResponse(const std::string &fsPath, int s
     return oss.str();
 }
 
-std::string Response_Builder::handleGet(const Location *loc,
-                                        const std::string &path)
+std::string Response_Builder::handleGet(const Location *loc, const std::string &path)
 {
     std::string fsPath = applyRoot(loc, path);
 
@@ -318,19 +319,17 @@ std::string Response_Builder::handleDelete(const Location *loc, const std::strin
     return buildSimpleResponse(200, "<html><body><h1>Deleted</h1></body></html>");
 }
 
-std::string Response_Builder::parseMultipart(
-    const std::string &body,
-    const std::string &boundary,
-    const std::string &uploadDir)
+std::string Response_Builder::parseMultipart(const std::string &body, const std::string &boundary, const std::string &uploadDir)
 {
     std::string sep = "--" + boundary;
     size_t pos = 0;
 
     while (true)
     {
-        size_t start = body.find(sep, pos);
-        if (start == std::string::npos) break;
-        start += sep.size();
+		size_t start = body.find(sep, pos);
+		if (start == std::string::npos)
+			break;
+		start += sep.size();
 
         if (body.compare(start, 2, "--") == 0)
             break; // end
@@ -344,8 +343,8 @@ std::string Response_Builder::parseMultipart(
 
         std::string headers = body.substr(start, header_end - start);
 
-        std::string filename = "file.bin";
-        size_t fn_pos = headers.find("filename=");
+        std::string filename;
+		size_t fn_pos = headers.find("filename=");
         if (fn_pos != std::string::npos)
         {
             fn_pos += 10; // filename="
@@ -353,12 +352,18 @@ std::string Response_Builder::parseMultipart(
             if (fn_end != std::string::npos)
                 filename = headers.substr(fn_pos, fn_end - fn_pos);
         }
-
-        size_t data_start = header_end + 4;
+		if (filename.empty())
+		{
+			Logger::warn("Empty filename(no file to upload)");
+			return ("Empty filename");
+		}
+		size_t data_start = header_end + 4;
         size_t next = body.find(sep, data_start);
         if (next == std::string::npos)
+		{
+			Logger::warn("Empty filename(no file to upload)");
             return "Malformed multipart body";
-
+		}
         size_t data_end = next - 2;
         std::string fileData = body.substr(data_start, data_end - data_start);
 
@@ -368,8 +373,12 @@ std::string Response_Builder::parseMultipart(
         full += filename;
 
         std::ofstream out(full.c_str(), std::ios::binary);
-        if (!out) return "Cannot write upload file";
-        out.write(fileData.c_str(), fileData.size());
+        if (!out)
+		{
+			Logger::warn("Cannot write upload file");
+			return "Cannot write upload file";
+		}
+		out.write(fileData.c_str(), fileData.size());
         out.close();
 
         pos = next;
@@ -389,8 +398,10 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
     std::string ctype = _req.get_header("Content-Type");
     size_t bpos = ctype.find("boundary=");
     if (bpos == std::string::npos)
+	{
+		Logger::warn("Missing multipart boundary");
         return buildErrorResponse(400, "Missing multipart boundary");
-
+	}
     std::string boundary = ctype.substr(bpos + 9);
     const std::string &body = _req.get_body();
 
@@ -421,19 +432,19 @@ std::string Response_Builder::build()
     const Location *loc = matchLocation(path);
 
     if (!isMethodAllowed(loc))
+	{
+		Logger::warn("Method Not Allowed");
         return buildErrorResponse(405, "Method Not Allowed");
-
+	}
     if (loc && loc->isRedirect())
     {
-        return buildRedirectResponse(
-            loc->getRedirectCode(),
-            loc->getRedirectUrl()
-        );
+        return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
     }
 
     if (method == "POST" &&
         _req.get_body().size() > _server->getClientMaxBodySize())
     {
+		Logger::warn("Payload Too Large");
         return buildErrorResponse(413, "Payload Too Large");
     }
 

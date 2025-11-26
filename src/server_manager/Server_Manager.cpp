@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/24 10:17:57 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/24 15:46:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -198,8 +198,8 @@ void Server_Manager::check_idle_clients()
         {
             Logger::warn("Client FD " + toString(fd) + " idle timeout.");
 
-            ++it;                // 먼저 iterator 이동
-            close_connection(fd); // 내부에서 안전하게 erase
+            ++it;
+            close_connection(fd);
         }
         else
         {
@@ -342,34 +342,31 @@ if (sent >= total)
 
 void Server_Manager::run()
 {
-    Logger::info("ServerManager main loop started.");
+	Logger::info("ServerManager main loop started.");
 
-    while (g_running)
-    {
-        check_idle_clients();
-
-        if (_poll_fds.empty())
-        {
-            Logger::error("No poll fds left. Exiting loop.");
-            break;
-        }
-
-        int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
-
-        if (ret < 0)
-        {
-            if (errno == EINTR)
+	while (g_running)
+	{
+		check_idle_clients();
+		if (_poll_fds.empty())
+		{
+			Logger::error("No poll fds left. Exiting loop.");
+			break;
+		}
+		int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
+		if (ret < 0)
+		{
+			if (errno == EINTR)
 			{
 				if (!g_running)
 				{
-					 Logger::info("ctrl + c situation. Exiting loop.");
-           			break;
+					Logger::info("ctrl + c situation. Exiting loop."); 
+					break;
 				}
-        		continue;
+				continue;
 			}
-            Logger::error("poll() failed: " + std::string(strerror(errno)));
-            break;
-        }
+			Logger::error("poll() failed: " + std::string(strerror(errno)));
+		break;
+		}
 
         if (ret == 0)
             continue;
@@ -419,7 +416,6 @@ void Server_Manager::run()
                     }
                 }
             }
-
             if (!closed && (pfd.revents & POLLOUT))
             {
                 if (send_response(fd))

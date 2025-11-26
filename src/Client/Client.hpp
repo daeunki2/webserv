@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/05 12:28:23 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 19:10:34 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 12:34:31 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,20 +43,19 @@ public:
     };
 
 private:
-    int             _fd;                // 클라이언트 소켓 FD
-    Server*         _server;            // 이 클라이언트에 매칭된 서버 설정
+    int             _fd;                // clien FD
+    Server*         _server;            // server settint
 
-    RequestParser   _parser;            // HTTP 요청 파서
-    ClientState     _state;             // 현재 클라이언트 상태
+    RequestParser   _parser;            // HTTP parser
+    ClientState     _state;             // state os client
 
-    std::string     _response_buffer;   // 전송할 전체 HTTP 응답
-    size_t          _sent_bytes;        // 지금까지 보낸 바이트 수
+    std::string     _response_buffer;   // full response "HTTP"
+    size_t          _sent_bytes;        // buffer_that i use
 
-    int             _error_code;        // HTTP 에러 코드 (0이면 정상)
-    bool            _keep_alive;        // 연결 유지 여부 (향후 사용)
+    int             _error_code;        // HTTP error code  (0 if is normal)
+    bool            _keep_alive;        //
 
 public:
-    // idle timeout 관리용 (Server_Manager에서 직접 접근)
     time_t          last_active_time;
 
 public:
@@ -71,7 +70,8 @@ public:
     int                 get_fd() const;
     ClientState         get_state() const;
     const http_request& get_request() const;
-
+	int 				get_error_code() const;
+	
     const std::string&  get_response_buffer() const;
     size_t              get_response_length() const;
     size_t&             get_sent_bytes();

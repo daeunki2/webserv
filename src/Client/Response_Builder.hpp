@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/24 10:40:14 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 12:47:21 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -22,13 +22,14 @@
 #include "Server.hpp"
 #include "Location.hpp"
 #include "http_request.hpp"
+#include "Client.hpp"
 
 class Response_Builder
 {
 private:
     Server*               _server;
     const http_request&   _req;     // reference → 반드시 초기화 리스트에서만 설정 가능
-
+	Client*				  _client;
     // 복사 금지 (C++98 방식)
     Response_Builder(const Response_Builder&);
     Response_Builder& operator=(const Response_Builder&);
@@ -53,12 +54,10 @@ private:
 	std::string handleDelete(const Location *loc, const std::string &path);
 
 	/* POST helpers */
-	std::string parseMultipart(const std::string &body,
-                           const std::string &boundary,
-                           const std::string &uploadDir);
+	std::string parseMultipart(const std::string &body, const std::string &boundary, const std::string &uploadDir);
 	
 public:
-    Response_Builder(Server* server, const http_request& req);
+    Response_Builder(Server* server, const http_request& req, Client* client);
     ~Response_Builder();
 
     std::string build();  // 최종 응답 생성

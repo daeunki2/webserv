@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 18:45:57 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 12:33:58 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -60,17 +60,14 @@ static bool parse_decimal_ll(const std::string& s, long long& out)
 // -----------------------------------------------------------
 
 RequestParser::RequestParser()
-: _state(REQUEST_LINE),
-  _buffer(),
-  _request(),
-  _content_to_read(0),
-  _chunk_size(0),
-  _is_chunked(false)
-{}
+: _state(REQUEST_LINE),_error_code(0), _buffer(),_request(),_content_to_read(0),_chunk_size(0),_is_chunked(false)
+{
+	
+}
 
 RequestParser::RequestParser(const RequestParser& o)
 {
-    *this = o;
+	*this = o;
 }
 
 RequestParser& RequestParser::operator=(const RequestParser& o)
@@ -78,6 +75,7 @@ RequestParser& RequestParser::operator=(const RequestParser& o)
     if (this != &o)
     {
         _state           = o._state;
+		_error_code		 = o._error_code;
         _buffer          = o._buffer;
         _request         = o._request;
         _content_to_read = o._content_to_read;
@@ -92,6 +90,7 @@ RequestParser::~RequestParser() {}
 void RequestParser::reset()
 {
     _state = REQUEST_LINE;
+	_error_code = 0;
     _buffer.clear();
     _request.reset();
     _content_to_read = 0;
@@ -155,7 +154,6 @@ RequestParser::feed(const char* data, size_t len)
 
         else if (_state == ERROR)
             return PARSING_ERROR;
-
         else
         {
             _state = ERROR;
@@ -178,6 +176,12 @@ bool RequestParser::extract_line(std::string& line)
     _buffer.erase(0, pos + 2);
     return true;
 }
+
+int	RequestParser::get_error_code() const
+{
+	return _error_code;
+}
+
 
 // -----------------------------------------------------------
 // request-line
@@ -204,11 +208,12 @@ RequestParser::parse_request_line()
     }
     if (!tmp.empty()) tok.push_back(tmp);
 
-    if (tok.size() != 3)
-    {
-        _state = ERROR;
-        return PARSING_ERROR;
-    }
+	if (tok.size() != 3)
+	{
+		_state = ERROR;
+		_error_code = 400; // bad request
+		return PARSING_ERROR;
+	}
 
     _request.set_method(tok[0]);
     _request.set_uri(tok[1]);
@@ -241,6 +246,7 @@ RequestParser::parse_headers()
                 if (_content_to_read < 0)
                 {
                     _state = ERROR;
+					_error_code = 400; // bad_request
                     return PARSING_ERROR;
                 }
                 _state = BODY;
@@ -267,6 +273,7 @@ void RequestParser::parse_header_line(const std::string& line)
     if (pos == std::string::npos)
     {
         _state = ERROR;
+		_error_code = 400;
         return;
     }
 
@@ -276,6 +283,7 @@ void RequestParser::parse_header_line(const std::string& line)
     if (name.empty())
     {
         _state = ERROR;
+		_error_code = 400;
         return;
     }
 
@@ -291,6 +299,7 @@ void RequestParser::parse_header_line(const std::string& line)
         if (!parse_decimal_ll(value, len) || len < 0)
         {
             _state = ERROR;
+			_error_code = 400;
             return;
         }
         _request.set_content_length(len);
@@ -368,6 +377,7 @@ RequestParser::parse_chunk_size()
     if (line.empty())
     {
         _state = ERROR;
+		_error_code = 400;
         return PARSING_ERROR;
     }
 
@@ -383,6 +393,7 @@ RequestParser::parse_chunk_size()
         else
         {
             _state = ERROR;
+			_error_code = 400;
             return PARSING_ERROR;
         }
     }
@@ -415,6 +426,7 @@ RequestParser::parse_chunk_data()
     if (_buffer[_chunk_size] != '\r' || _buffer[_chunk_size + 1] != '\n')
     {
         _state = ERROR;
+		_error_code = 400;
         return PARSING_ERROR;
     }
 
@@ -433,3 +445,4 @@ const http_request& RequestParser::getRequest() const
 {
     return _request;
 }
+

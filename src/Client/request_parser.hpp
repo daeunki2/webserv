@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 18:43:01 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 12:22:15 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -44,6 +44,7 @@ public:
 
 private:
 	State        _state;
+	int			_error_code;
 	std::string  _buffer;
 	http_request _request;
 
@@ -78,6 +79,8 @@ public:
 
     // reset for keep-alive
 	void reset();
+	//getter
+	int	get_error_code() const;
 };
 
 #endif

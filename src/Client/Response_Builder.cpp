@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/24 12:11:45 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 16:02:02 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -25,8 +25,8 @@
 /*                               Constructor                                  */
 /* ************************************************************************** */
 
-Response_Builder::Response_Builder(Server *server, const http_request &req)
-: _server(server), _req(req)
+Response_Builder::Response_Builder(Server *server, const http_request &req, Client* clinet)
+: _server(server), _req(req), _client(clinet)
 {}
 
 Response_Builder::~Response_Builder()
@@ -38,18 +38,29 @@ Response_Builder::~Response_Builder()
 
 std::string Response_Builder::statusMessage(int status) const
 {
-    if (status == 200) return "OK";
-    if (status == 201) return "Created";
-    if (status == 204) return "No Content";
-    if (status == 301) return "Moved Permanently";
-    if (status == 302) return "Found";
-    if (status == 400) return "Bad Request";
-    if (status == 403) return "Forbidden";
-    if (status == 404) return "Not Found";
-    if (status == 405) return "Method Not Allowed";
-    if (status == 413) return "Payload Too Large";
-    if (status == 500) return "Internal Server Error";
-    return "Unknown";
+	if (status == 200)
+		return "OK";
+	if (status == 201)
+		return "Created";
+	if (status == 204)
+		return "No Content";
+	if (status == 301)
+		return "Moved Permanently";
+	if (status == 302)
+		return "Found";
+	if (status == 400)
+		return "Bad Request";
+	if (status == 403)
+		return "Forbidden";
+	if (status == 404)
+		return "Not Found";
+	if (status == 405)
+		return "Method Not Allowed";
+	if (status == 413)
+		return "Payload Too Large";
+	if (status == 500)
+		return "Internal Server Error";
+	return "Unknown";
 }
 
 const Location* Response_Builder::matchLocation(const std::string &path) const
@@ -109,12 +120,9 @@ std::string Response_Builder::getMimeType(const std::string &path) const
     return "application/octet-stream";
 }
 
-std::string Response_Builder::applyRoot(const Location *loc,
-                                        const std::string &path) const
+std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
 {
-    std::string root = (loc && !loc->getRoot().empty())
-                       ? loc->getRoot()
-                       : _server->getRoot();
+    std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
 
     std::string url = path;
 
@@ -136,8 +144,7 @@ std::string Response_Builder::applyRoot(const Location *loc,
 
 std::string Response_Builder::findErrorPage(int status) const
 {
-    const std::vector<std::pair<int, std::string> > &pages =
-        _server->getErrorPages();
+    const std::vector<std::pair<int, std::string> > &pages =_server->getErrorPages();
 
     for (size_t i = 0; i < pages.size(); ++i)
         if (pages[i].first == status)
@@ -146,8 +153,7 @@ std::string Response_Builder::findErrorPage(int status) const
     return "";
 }
 
-std::string Response_Builder::buildSimpleResponse(int status,
-                                                  const std::string &body)
+std::string Response_Builder::buildSimpleResponse(int status, const std::string &body)
 {
     std::ostringstream oss;
 
@@ -160,8 +166,7 @@ std::string Response_Builder::buildSimpleResponse(int status,
     return oss.str();
 }
 
-std::string Response_Builder::buildErrorResponse(int status,
-                                                 const std::string &msg)
+std::string Response_Builder::buildErrorResponse(int status, const std::string &msg)
 {
     std::string custom = findErrorPage(status);
 
@@ -179,7 +184,7 @@ std::string Response_Builder::buildErrorResponse(int status,
             std::ostringstream oss;
             oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
             oss << "Content-Length: " << content.size() << "\r\n";
-            oss << "Content-Type: text/html\r\n";
+            oss << "Content-Type: text/html; charset=UTF-8\r\n";
 			oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
             oss << content;
 
@@ -195,8 +200,7 @@ std::string Response_Builder::buildErrorResponse(int status,
     return buildSimpleResponse(status, defaultBody.str());
 }
 
-std::string Response_Builder::buildRedirectResponse(int status,
-                                                    const std::string &url)
+std::string Response_Builder::buildRedirectResponse(int status, const std::string &url)
 {
     std::ostringstream oss;
 
@@ -215,12 +219,11 @@ std::string Response_Builder::buildRedirectResponse(int status,
     return oss.str();
 }
 
-std::string Response_Builder::buildAutoindexResponse(const std::string &fsPath,
-                                                     const std::string &urlPath)
+std::string Response_Builder::buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath)
 {
-    DIR *dir = opendir(fsPath.c_str());
-    if (!dir)
-        return buildErrorResponse(403, "Autoindex forbidden");
+	DIR *dir = opendir(fsPath.c_str());
+	if (!dir)
+		return buildErrorResponse(403, "Autoindex forbidden");
 
     std::ostringstream body;
 
@@ -247,8 +250,7 @@ std::string Response_Builder::buildAutoindexResponse(const std::string &fsPath,
     return buildSimpleResponse(200, body.str());
 }
 
-std::string Response_Builder::buildFileResponse(const std::string &fsPath,
-                                                int status)
+std::string Response_Builder::buildFileResponse(const std::string &fsPath, int status)
 {
     std::ifstream f(fsPath.c_str(), std::ios::binary);
 
@@ -299,8 +301,7 @@ std::string Response_Builder::handleGet(const Location *loc,
     return buildFileResponse(fsPath, 200);
 }
 
-std::string Response_Builder::handleDelete(const Location *loc,
-                                           const std::string &path)
+std::string Response_Builder::handleDelete(const Location *loc, const std::string &path)
 {
     std::string fsPath = applyRoot(loc, path);
     struct stat st;
@@ -411,17 +412,30 @@ std::string Response_Builder::build()
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
 
+    if (_client->get_error_code() != 0)
+    {
+        int code = _client->get_error_code();
+        return buildErrorResponse(code, statusMessage(code));
+    }
+
     const Location *loc = matchLocation(path);
 
     if (!isMethodAllowed(loc))
-        return buildErrorResponse(405, "Method not allowed");
+        return buildErrorResponse(405, "Method Not Allowed");
 
     if (loc && loc->isRedirect())
-        return buildRedirectResponse(loc->getRedirectCode(),
-                                     loc->getRedirectUrl());
+    {
+        return buildRedirectResponse(
+            loc->getRedirectCode(),
+            loc->getRedirectUrl()
+        );
+    }
 
-    if (_req.get_body().size() > _server->getClientMaxBodySize())
-        return buildErrorResponse(413, "Payload too large");
+    if (method == "POST" &&
+        _req.get_body().size() > _server->getClientMaxBodySize())
+    {
+        return buildErrorResponse(413, "Payload Too Large");
+    }
 
     if (method == "GET")
         return handleGet(loc, path);
@@ -432,5 +446,6 @@ std::string Response_Builder::build()
     if (method == "DELETE")
         return handleDelete(loc, path);
 
-    return buildErrorResponse(500, "Unhandled method");
+    return buildErrorResponse(501, "Not Implemented");
 }
+

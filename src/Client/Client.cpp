@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 19:13:58 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/26 12:48:11 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,28 +24,12 @@
 /* ************************************************************************** */
 
 Client::Client()
-: _fd(-1),
-  _server(0),
-  _parser(),
-  _state(RECVING_REQUEST),
-  _response_buffer(),
-  _sent_bytes(0),
-  _error_code(0),
-  _keep_alive(false),
-  last_active_time(time(NULL))
+: _fd(-1), _server(0), _parser(), _state(RECVING_REQUEST), _response_buffer(), _sent_bytes(0), _error_code(0), _keep_alive(false), last_active_time(time(NULL))
 {
 }
 
 Client::Client(int fd, Server* server)
-: _fd(fd),
-  _server(server),
-  _parser(),
-  _state(RECVING_REQUEST),
-  _response_buffer(),
-  _sent_bytes(0),
-  _error_code(0),
-  _keep_alive(false),
-  last_active_time(time(NULL))
+: _fd(fd), _server(server),_parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false),last_active_time(time(NULL))
 {
 }
 
@@ -56,24 +40,24 @@ Client::Client(const Client &o)
 
 Client &Client::operator=(const Client &o)
 {
-    if (this != &o)
-    {
-        _fd              = o._fd;
-        _server          = o._server;
-        _parser          = o._parser;
-        _state           = o._state;
-        _response_buffer = o._response_buffer;
-        _sent_bytes      = o._sent_bytes;
-        _error_code      = o._error_code;
-        _keep_alive      = o._keep_alive;
-        last_active_time = o.last_active_time;
-    }
-    return *this;
+	if (this != &o)
+	{
+		_fd              = o._fd;
+		_server          = o._server;
+		_parser          = o._parser;
+		_state           = o._state;
+		_response_buffer = o._response_buffer;
+		_sent_bytes      = o._sent_bytes;
+		_error_code      = o._error_code;
+		_keep_alive      = o._keep_alive;
+		last_active_time = o.last_active_time;
+	}
+	return *this;
 }
 
 Client::~Client()
 {
-    // FD close는 Server_Manager가 관리
+	
 }
 
 /* ************************************************************************** */
@@ -110,6 +94,13 @@ size_t& Client::get_sent_bytes()
     return _sent_bytes;
 }
 
+int 	Client::get_error_code() const
+{
+	return _error_code;
+}
+
+
+
 /* ************************************************************************** */
 /*                          state / reset                                      */
 /* ************************************************************************** */
@@ -131,7 +122,7 @@ void Client::reset()
 }
 
 /* ************************************************************************** */
-/*                     recv 데이터 → RequestParser                              */
+/*                     recv data → RequestParser                              */
 /* ************************************************************************** */
 
 Client::ParsingState
@@ -143,8 +134,9 @@ Client::handle_recv_data(const char* data, size_t size)
 
     if (st == RequestParser::PARSING_ERROR)
     {
+		//todo - set_error. 
         Logger::warn("Parsing error on FD " + toString(_fd));
-        _error_code = 400;
+        _error_code = _parser.get_error_code(); 
         _state      = ERROR_STATE;
         return PARSING_ERROR;
     }
@@ -165,7 +157,7 @@ void Client::build_response()
 {
     const http_request& req = _parser.getRequest();
 
-    Response_Builder builder(_server, req);
+    Response_Builder builder(_server, req, this);
 
     std::string response;
 

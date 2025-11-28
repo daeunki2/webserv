@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 12:47:21 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/28 19:18:47 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -42,20 +42,19 @@ private:
     std::string getMimeType(const std::string &path) const;
     std::string applyRoot(const Location *loc, const std::string &path) const;
     std::string findErrorPage(int status) const;
-
+	std::string sanitizeFilename(const std::string &name);
     std::string buildSimpleResponse(int status, const std::string &body);
     std::string buildErrorResponse(int status, const std::string &msg);
     std::string buildRedirectResponse(int status, const std::string &url);
     std::string buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath);
     std::string buildFileResponse(const std::string &fsPath, int status);
 	/* Method handlers */
-	std::string handleGet(const Location *loc, const std::string &path);
+	std::string handleGet(const Location *loc);
 	std::string handlePost(const Location *loc, const std::string &path);
 	std::string handleDelete(const Location *loc, const std::string &path);
 
 	/* POST helpers */
-	std::string parseMultipart(const std::string &body, const std::string &boundary, const std::string &uploadDir);
-	
+std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
 public:
     Response_Builder(Server* server, const http_request& req, Client* client);
     ~Response_Builder();

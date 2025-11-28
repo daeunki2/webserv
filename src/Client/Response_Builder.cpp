@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/28 15:37:41 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/28 19:42:46 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -170,6 +170,8 @@ std::string Response_Builder::buildErrorResponse(int status, const std::string &
 {
     std::string custom = findErrorPage(status);
 
+	   Logger::warn("[RESP] FD " + toString(_client->get_fd()) + " -> " + toString(status) + " " + statusMessage(status) + " (" + msg + ")");
+
     if (!custom.empty())
     {
         std::string fsPath = applyRoot(NULL, custom);
@@ -254,6 +256,8 @@ std::string Response_Builder::buildFileResponse(const std::string &fsPath, int s
 {
     std::ifstream f(fsPath.c_str(), std::ios::binary);
 
+	Logger::info("[RESP] FD " + toString(_client->get_fd()) + " -> " + toString(status) + " " + statusMessage(status) + " file=" + fsPath);
+
     if (!f)
 	{
         return buildErrorResponse(404, "File not found");
@@ -273,33 +277,8 @@ std::string Response_Builder::buildFileResponse(const std::string &fsPath, int s
     return oss.str();
 }
 
-std::string Response_Builder::handleGet(const Location *loc, const std::string &path)
-{
-    std::string fsPath = applyRoot(loc, path);
 
-    struct stat st;
-    if (stat(fsPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
-    {
-        std::string indexFile = "index.html";
-        if (loc && !loc->getIndex().empty())
-            indexFile = loc->getIndex();
 
-        if (fsPath[fsPath.size() - 1] != '/')
-            fsPath += "/";
-
-        std::string idx = fsPath + indexFile;
-
-        if (stat(idx.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-            return buildFileResponse(idx, 200);
-
-        if (loc && loc->getAutoindex())
-            return buildAutoindexResponse(fsPath, path);
-
-        return buildErrorResponse(403, "Directory listing forbidden");
-    }
-
-    return buildFileResponse(fsPath, 200);
-}
 
 std::string Response_Builder::handleDelete(const Location *loc, const std::string &path)
 {
@@ -318,78 +297,132 @@ std::string Response_Builder::handleDelete(const Location *loc, const std::strin
     return buildSimpleResponse(200, "<html><body><h1>Deleted</h1></body></html>");
 }
 
-std::string Response_Builder::parseMultipart(const std::string &body, const std::string &boundary, const std::string &uploadDir)
+std::string Response_Builder::sanitizeFilename(const std::string &name)
+{
+
+    size_t pos = name.find_last_of("/\\");
+    std::string base = (pos == std::string::npos) ? name : name.substr(pos + 1);
+
+    if (base == "." || base == "..")
+        return "";
+
+    if (base.find("..") != std::string::npos)
+        return "";
+
+    return base;
+}
+
+std::string Response_Builder::parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir)
 {
     std::string sep = "--" + boundary;
     size_t pos = 0;
 
     while (true)
     {
-		size_t start = body.find(sep, pos);
-		if (start == std::string::npos)
-			break;
-		start += sep.size();
+        size_t start = body.find(sep, pos);
+        if (start == std::string::npos)
+            return "400";
+
+        start += sep.size();
 
         if (body.compare(start, 2, "--") == 0)
-            break; // end
+            break;
 
         if (body.compare(start, 2, "\r\n") == 0)
             start += 2;
 
-        size_t header_end = body.find("\r\n\r\n", start);
-        if (header_end == std::string::npos)
-            return "Malformed multipart header";
+        size_t headerEnd = body.find("\r\n\r\n", start);
+        if (headerEnd == std::string::npos)
+            return "400";
 
-        std::string headers = body.substr(start, header_end - start);
+        std::string headerBlock = body.substr(start, headerEnd - start);
 
         std::string filename;
-		size_t fn_pos = headers.find("filename=");
-        if (fn_pos != std::string::npos)
         {
-            fn_pos += 10; // filename="
-            size_t fn_end = headers.find("\"", fn_pos);
-            if (fn_end != std::string::npos)
-                filename = headers.substr(fn_pos, fn_end - fn_pos);
+            size_t fnPos = headerBlock.find("filename=\"");
+            if (fnPos != std::string::npos)
+            {
+                fnPos += 10;
+                size_t end = headerBlock.find("\"", fnPos);
+                if (end != std::string::npos)
+                    filename = headerBlock.substr(fnPos, end - fnPos);
+            }
         }
-		if (filename.empty())
-		{
-			Logger::warn("Empty filename(no file to upload)");
-			return ("Empty filename");
-		}
-		size_t data_start = header_end + 4;
-        size_t next = body.find(sep, data_start);
-        if (next == std::string::npos)
-		{
-			Logger::warn("Empty filename(no file to upload)");
-            return "Malformed multipart body";
-		}
-        size_t data_end = next - 2;
-        std::string fileData = body.substr(data_start, data_end - data_start);
 
-        std::string full = uploadDir;
-        if (full[full.size()-1] != '/')
-            full += "/";
-        full += filename;
+        filename = sanitizeFilename(filename);
 
-        std::ofstream out(full.c_str(), std::ios::binary);
-        if (!out)
-		{
-			Logger::warn("Cannot write upload file");
-			return "Cannot write upload file";
-		}
-		out.write(fileData.c_str(), fileData.size());
-        out.close();
+        size_t dataStart = headerEnd + 4;
+        size_t nextSep = body.find(sep, dataStart);
+        if (nextSep == std::string::npos)
+            return "400";
 
-        pos = next;
+        size_t dataEnd = nextSep - 2;
+
+        if (filename.empty())
+        {
+            Logger::warn("Skipping multipart part (no filename). Only text field or empty file.");
+            pos = nextSep;
+            continue;
+        }
+
+        std::string filePath = uploadDir + "/" + filename;
+        std::ofstream ofs(filePath.c_str(), std::ios::binary);
+
+        if (!ofs.is_open())
+            return "500";
+
+        ofs.write(body.data() + dataStart, dataEnd - dataStart);
+        ofs.close();
+
+        pos = nextSep;
     }
 
     return "";
 }
 
+std::string Response_Builder::handleGet(const Location *loc)
+{
+    std::string fsPath = applyRoot(loc, _req.get_path());
+
+    struct stat st;
+    if (stat(fsPath.c_str(), &st) < 0)
+        return buildErrorResponse(404, "Not Found");
+
+    if (S_ISDIR(st.st_mode))
+    {
+        const std::string &reqPath = _req.get_path();
+
+        if (!reqPath.empty() && reqPath[reqPath.size() - 1] != '/')
+        {
+            std::string location = reqPath + "/";
+            return "HTTP/1.1 301 Moved Permanently\r\n"
+                   "Location: " + location + "\r\n"
+                   "Content-Length: 0\r\n"
+                   "Connection: " + std::string(_req.keep_alive() ? "keep-alive" : "close") +
+                   "\r\n\r\n";
+        }
+
+        if (loc && !loc->getIndex().empty())
+        {
+            std::string idx = fsPath + "/" + loc->getIndex();
+            if (stat(idx.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+                return buildFileResponse(idx, 200);
+        }
+
+        // autoindex
+		if (loc && loc->getAutoindex())
+    		return buildAutoindexResponse(fsPath, _req.get_path());
+        return buildErrorResponse(403, "Forbidden");
+    }
+
+    return buildFileResponse(fsPath, 200);
+}
+
 std::string Response_Builder::handlePost(const Location *loc, const std::string &path)
 {
-	(void)path;
-	if (!loc || loc->getUploadPath().empty())
+    (void)path;
+
+    if (!loc || loc->getUploadPath().empty())
         return buildSimpleResponse(200, "<html><body><h1>POST OK</h1></body></html>");
 
     std::string uploadDir = loc->getUploadPath();
@@ -397,19 +430,31 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
     std::string ctype = _req.get_header("Content-Type");
     size_t bpos = ctype.find("boundary=");
     if (bpos == std::string::npos)
-	{
-		Logger::warn("Missing multipart boundary");
+    {
+        Logger::warn("Missing multipart boundary");
         return buildErrorResponse(400, "Missing multipart boundary");
-	}
+    }
+
     std::string boundary = ctype.substr(bpos + 9);
     const std::string &body = _req.get_body();
 
     std::string err = parseMultipart(body, boundary, uploadDir);
+
     if (!err.empty())
-        return buildErrorResponse(400, err);
+    {
+        if (err == "500")
+        {
+            Logger::warn("Multipart upload failed (server error)");
+            return buildErrorResponse(500, "Upload failed");
+        }
+
+        Logger::warn("Malformed multipart request");
+        return buildErrorResponse(400, "Malformed multipart body");
+    }
 
     return buildSimpleResponse(201, "<html><body><h1>Uploaded</h1></body></html>");
 }
+
 
 
 
@@ -421,6 +466,7 @@ std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
+    Logger::info("[REQ] FD " + toString(_client->get_fd()) + " " + method + " " + path);
 
     if (_client->get_error_code() != 0)
     {
@@ -448,7 +494,7 @@ std::string Response_Builder::build()
     }
 
     if (method == "GET")
-        return handleGet(loc, path);
+        return handleGet(loc);
 
     if (method == "POST")
         return handlePost(loc, path);

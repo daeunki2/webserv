@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 12:48:11 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/28 17:31:15 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -134,11 +134,10 @@ Client::handle_recv_data(const char* data, size_t size)
 
     if (st == RequestParser::PARSING_ERROR)
     {
-		//todo - set_error. 
         Logger::warn("Parsing error on FD " + toString(_fd));
         _error_code = _parser.get_error_code(); 
-        _state      = ERROR_STATE;
-        return PARSING_ERROR;
+        _state      = REQUEST_COMPLETE;
+        return PARSING_COMPLETED;
     }
     else if (st == RequestParser::PARSING_COMPLETED)
     {

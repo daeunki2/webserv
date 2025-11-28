@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 12:33:58 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/28 17:26:34 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,18 +18,6 @@
 // utils
 // -----------------------------------------------------------
 
-// static std::string trim(const std::string& s)
-// {
-//     size_t start = 0;
-//     while (start < s.size() && (s[start] == ' ' || s[start] == '\t'))
-//         ++start;
-
-//     size_t end = s.size();
-//     while (end > start && (s[end - 1] == ' ' || s[end - 1] == '\t'))
-//         --end;
-
-//     return s.substr(start, end - start);
-// }
 
 static bool parse_decimal_ll(const std::string& s, long long& out)
 {
@@ -110,30 +98,42 @@ RequestParser::feed(const char* data, size_t len)
 
     while (true)
     {
+        ParsingState st;
+
         if (_state == REQUEST_LINE)
         {
-            ParsingState st = parse_request_line();
-            if (st != PARSING_IN_PROGRESS)
-                return st;
-        }
-        else if (_state == HEADERS)
-        {
-            ParsingState st = parse_headers();
-            if (st != PARSING_IN_PROGRESS)
-                return st;
-        }
-        else if (_state == BODY)
-        {
-            ParsingState st = parse_body();
+            st = parse_request_line();
+
             if (st != PARSING_IN_PROGRESS)
                 return st;
 
-            if (_state != COMPLETE)
+            if (_state == REQUEST_LINE)
+                return PARSING_IN_PROGRESS;
+        }
+        else if (_state == HEADERS)
+        {
+            st = parse_headers();
+
+            if (st != PARSING_IN_PROGRESS)
+                return st;
+
+            if (_state == HEADERS)
+                return PARSING_IN_PROGRESS;
+        }
+        else if (_state == BODY)
+        {
+            st = parse_body();
+
+            if (st != PARSING_IN_PROGRESS)
+                return st;
+
+            if (_state == BODY)
                 return PARSING_IN_PROGRESS;
         }
         else if (_state == CHUNK_SIZE)
         {
-            ParsingState st = parse_chunk_size();
+            st = parse_chunk_size();
+
             if (st != PARSING_IN_PROGRESS)
                 return st;
 
@@ -142,7 +142,8 @@ RequestParser::feed(const char* data, size_t len)
         }
         else if (_state == CHUNK_DATA)
         {
-            ParsingState st = parse_chunk_data();
+            st = parse_chunk_data();
+
             if (st != PARSING_IN_PROGRESS)
                 return st;
 
@@ -150,10 +151,13 @@ RequestParser::feed(const char* data, size_t len)
                 return PARSING_IN_PROGRESS;
         }
         else if (_state == COMPLETE)
+        {
             return PARSING_COMPLETED;
-
+        }
         else if (_state == ERROR)
+        {
             return PARSING_ERROR;
+        }
         else
         {
             _state = ERROR;
@@ -161,6 +165,7 @@ RequestParser::feed(const char* data, size_t len)
         }
     }
 }
+
 
 // -----------------------------------------------------------
 // extract line

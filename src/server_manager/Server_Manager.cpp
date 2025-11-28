@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/24 15:46:25 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/28 17:43:16 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -67,13 +67,10 @@ Server_Manager::~Server_Manager()
 
 void Server_Manager::set_fd_non_blocking(int fd)
 {
-    int flags = fcntl(fd, F_GETFL, 0);
-    if (flags == -1)
-        throw Error("fcntl(F_GETFL) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
-
-    if (fcntl(fd, F_SETFL, flags | O_NONBLOCK) == -1)
+    if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
         throw Error("fcntl(F_SETFL, O_NONBLOCK) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
 }
+
 
 void Server_Manager::init_sockets()
 {
@@ -221,8 +218,10 @@ void Server_Manager::accept_new_client(int server_fd)
         int client_fd = accept(server_fd, (struct sockaddr*)&client_addr, &addr_size);
         if (client_fd < 0)
         {
-            if (errno == EAGAIN || errno == EWOULDBLOCK)
+			if (errno == EAGAIN || errno == EWOULDBLOCK)
+            {
                 return;
+            }
             Logger::error("accept() failed: " + std::string(strerror(errno)));
             return;
         }
@@ -265,9 +264,9 @@ bool Server_Manager::receive_request(int fd)
 
     if (n <= 0)
     {
-        if (n < 0 && errno != EAGAIN && errno != EWOULDBLOCK)
-            Logger::error("recv failed: " + std::string(strerror(errno)));
-        close_connection(fd);
+		if(n < 0)
+		Logger::error("recv failed");
+		close_connection(fd);
         return true;
     }
 
@@ -275,13 +274,9 @@ bool Server_Manager::receive_request(int fd)
 
     Client::ParsingState st = client.handle_recv_data(buf, n);
 
-    if (st == Client::PARSING_ERROR)
+    if (st == Client::PARSING_COMPLETED)
     {
-        close_connection(fd);
-        return true;
-    }
-    else if (st == Client::PARSING_COMPLETED)
-    {
+		Logger::info("got request from FD " + toString(fd));
         client.update_state(Client::REQUEST_COMPLETE);
     }
 
@@ -306,32 +301,29 @@ bool Server_Manager::send_response(int client_fd)
 
     if (bytes_sent < 0)
     {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
-            return false;
-
-        Logger::error("send() failed: " + std::string(strerror(errno)));
+		Logger::error("send() failed");
         close_connection(client_fd);
         return true;
     }
 
     sent += bytes_sent;
 
-if (sent >= total)
-{
-    if (client.get_request().keep_alive())
-    {
-        client.reset();
-        update_poll_events(client_fd, POLLIN);
-        client.update_state(Client::RECVING_REQUEST);
-    }
-    else
-    {
-        client.update_state(Client::CONNECTION_CLOSE);
-        close_connection(client_fd);
-    }
-    return true;
-}
-
+	if (sent >= total)
+	{
+    	if (client.get_request().keep_alive())
+    	{
+        	client.reset();
+        	update_poll_events(client_fd, POLLIN);
+        	client.update_state(Client::RECVING_REQUEST);
+    	}
+    	else
+    	{
+        	client.update_state(Client::CONNECTION_CLOSE);
+        	close_connection(client_fd);
+    	}
+		Logger::info("send response to FD " + toString(client_fd));
+    	return true;
+	}
     return false;
 }
 

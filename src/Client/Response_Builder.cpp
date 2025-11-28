@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 16:27:00 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/28 15:37:41 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -256,7 +256,6 @@ std::string Response_Builder::buildFileResponse(const std::string &fsPath, int s
 
     if (!f)
 	{
-		Logger::warn("File not found");
         return buildErrorResponse(404, "File not found");
 	}
     std::ostringstream buf;
@@ -307,7 +306,7 @@ std::string Response_Builder::handleDelete(const Location *loc, const std::strin
     std::string fsPath = applyRoot(loc, path);
     struct stat st;
 
-    if (stat(fsPath.c_str(), &st) != 0)
+    if (stat(fsPath.c_str(), &st) != 0)// 파일이 존재하지 않을때
         return buildErrorResponse(404, "File not found");
 
     if (S_ISDIR(st.st_mode))

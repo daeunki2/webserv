@@ -3,72 +3,90 @@
 flowchart TD
 
 %% ===============================
-%% PROGRAM START
+%% PROGRAM STARTUP
 %% ===============================
-A["프로그램 시작 (./webserv config.txt)"]
-  --> B["config 파일 파싱"]
-  --> C["Server_Manager 생성"]
+A["Program starts (./webserv config.txt)"]
+  --> B["Parse configuration file"]
+  --> C["Create Server_Manager"]
 
 %% ===============================
-%% SERVER PREPARE
+%% SERVER INITIALIZATION
 %% ===============================
-C --> D["서버 소켓 준비"]
+C --> D["Initialize server sockets"]
 D --> D1["socket()"]
 D --> D2["bind()"]
 D --> D3["listen()"]
-D3 --> E["서버 준비 완료"]
+D3 --> E["Server ready"]
 
 %% ===============================
-%% MAIN LOOP
+%% MAIN EVENT LOOP
 %% ===============================
-E --> F["메인 루프 시작"]
-F --> G{"while (서버 실행 중)"}
+E --> F["Enter main loop"]
+F --> G{"Server running?"}
 
-%% ===============================
-%% WAIT
-%% ===============================
-G --> H["poll()로 이벤트 대기"]
+G --> H["poll(): wait for events"]
 
-H -->|아무 일 없음| G
+H -->|No events| G
 
 %% ===============================
-%% NEW CONNECTION
+%% EVENT DISPATCH
 %% ===============================
-H --> I["이벤트 발생"]
-I --> J{새 클라이언트 연결?}
-
-J -->|Yes| K["accept()"]
-K --> K1["Client 객체 생성"]
-K1 --> G
+H --> I["Event detected"]
+I --> J{Listening socket_ready?}
 
 %% ===============================
-%% CLIENT REQUEST
+%% NEW CLIENT CONNECTION
 %% ===============================
-J -->|No| L{"클라이언트 소켓 이벤트?"}
+J -->|Yes| K["accept() new connection"]
+K --> K1["Create Client object"]
+K1 --> K2["Register client socket to poll()"]
+K2 --> G
 
-L -->|오류| M["연결 종료"]
+%% ===============================
+%% CLIENT SOCKET EVENT
+%% ===============================
+J -->|No| L{Client socket_event?}
 
-L -->|데이터 옴| N["recv()로 요청 읽기"]
+L -->|Error / Hangup| X["Close connection"]
 
-N --> O{"요청 다 읽었나?"}
+%% ===============================
+%% RECEIVE REQUEST
+%% ===============================
+L -->|Readable (POLLIN)| M["recv(): read incoming data"]
+M --> N["Append data to Client buffer"]
+N --> O{"Is HTTP request complete?"}
+
 O -->|No| G
 
 %% ===============================
-%% RESPONSE
+%% REQUEST PARSING COMPLETE
 %% ===============================
-O -->|Yes| P["응답 생성"]
-P --> P1["요청 분석"]
-P1 --> P2["Response_Builder 실행"]
-P2 --> Q["send()로 응답 전송"]
+O -->|Yes| P["Client state → REQUEST_COMPLETE"]
+P --> Q["Build HTTP response"]
+Q --> Q1["Analyze request (method, path, headers)"]
+Q1 --> Q2["Generate response via Response_Builder"]
+Q2 --> R["Prepare socket for sending (POLLOUT)"]
+
+%% ===============================
+%% SEND RESPONSE
+%% ===============================
+L -->|Writable (POLLOUT)| S["send(): transmit response"]
+S --> T{"Response fully sent?"}
+
+T -->|No| G
 
 %% ===============================
 %% CONNECTION DECISION
 %% ===============================
-Q --> R{"keep-alive?"}
-R -->|Yes| S["클라이언트 상태 초기화"]
-S --> G
+T -->|Yes| U{"Keep-Alive?"}
 
-R -->|No| M
+U -->|Yes| V["Reset Client state"]
+V --> V1["Wait for next request on same connection"]
+V1 --> G
+
+U -->|No| X
+
+
 
 
 ```

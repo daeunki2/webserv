@@ -1,34 +1,60 @@
+flowchart TD
 
-flowchart LR
+    %% ──────────────── PROGRAM START ────────────────
+    A[Program starts: ./webserv config.txt] --> B[Check argc == 2?]
+    B -->|No| B1[Print usage and exit]
+    B -->|Yes| C[Load config file path]
 
-    subgraph SM[Server_Manager]
-        SM_Servers[servers: vector<Server>]
-        SM_Clients[clients: map<fd, Client>]
-        SM_poll[poll_fds]
-    end
+    %% ─────────────── CONFIG PARSING ───────────────
+    C --> D[ConfigParser::read_file_lines()]
+    D --> E[Tokenize + Validate syntax]
+    E --> F[Build vector<Server>]
+    F --> G[Config ready]
 
-    subgraph S[Server]
-        S_root[root]
-        S_locations[locations]
-    end
+    %% ─────────────── SERVER INIT ───────────────
+    G --> H[Create Server_Manager(servers)]
+    H --> I[init_sockets(): create/bind/listen]
+    I --> J[Insert listening fds into poll_fds]
 
-    subgraph C[Client]
-        C_req[http_request]
-        C_buffer[response_buffer]
-        C_state[state]
-    end
+    %% ─────────────── EVENT LOOP ───────────────
+    J --> L[run(): while(g_running)]
+    L --> X[check_idle_clients()]
+    X --> M[poll() wait for events]
 
-    subgraph RB[Response_Builder]
-        RB_build[build()]
-    end
+    %% ─────────────── ACCEPT NEW CLIENTS ───────────────
+    M -->|POLLIN on listening fd| N[accept_new_client()]
+    N --> N1[Create Client object]
+    N1 --> N2[Add client fd into poll_fds]
+    N2 --> L
 
-    ClientInput[Client sends HTTP request] --> SM
-    SM -->|accept()| C
+    %% ─────────────── READ FROM CLIENTS ───────────────
+    M -->|POLLIN on client fd| O[receive_request()]
+    O --> P[Client::handle_recv_data()]
+    P --> Q{Request complete?}
+    Q -->|No| L
+    Q -->|Yes| R[Client::build_response()]
 
-    C -->|raw bytes| C_req
-    C_req -->|parsed request| C_state
+    %% ─────────────── RESPONSE BUILDING ───────────────
+    R --> S{Method?}
+    S -->|GET| G1[Response_Builder::handleGet()]
+    S -->|POST| G2[Response_Builder::handlePost()]
+    S -->|DELETE| G3[Response_Builder::handleDelete()]
+    S -->|CGI| G4[Execute CGI via fork+execve]
 
-    C_state -->|REQUEST_COMPLETE| RB
-    RB -->|build response string| C_buffer
-    C_buffer -->|POLLOUT| SM
-    SM -->|send()| ClientOutput[HTTP response to client]
+    G1 --> T[Generate HTTP response string]
+    G2 --> T
+    G3 --> T
+    G4 --> T
+
+    T --> U[Store response in Client buffer]
+    U --> L
+
+    %% ─────────────── WRITE BACK TO CLIENTS ───────────────
+    M -->|POLLOUT on client fd| V[send_response()]
+    V --> W{Keep-Alive?}
+    W -->|No| Z[close_connection()]
+    W -->|Yes| L
+
+    %% ─────────────── SHUTDOWN ───────────────
+    L -->|SIGINT/SIGTERM| END[g_running = 0 → cleanup → exit]
+

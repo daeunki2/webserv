@@ -2,77 +2,73 @@
 
 flowchart TD
 
-%% =====================
-%% STARTUP
-%% =====================
-A["main()"]
-  --> B["ConfigParser → vector<Server>"]
-  --> C["Server_Manager 생성자"]
-  --> C1["init_sockets()"]
-  --> D["run()"]
+%% ===============================
+%% PROGRAM START
+%% ===============================
+A["프로그램 시작 (./webserv config.txt)"]
+  --> B["config 파일 파싱"]
+  --> C["Server_Manager 생성"]
 
-%% =====================
-%% MAIN LOOP (REAL HOT PATH)
-%% =====================
-D --> E{"while (g_running)"}
+%% ===============================
+%% SERVER PREPARE
+%% ===============================
+C --> D["서버 소켓 준비"]
+D --> D1["socket()"]
+D --> D2["bind()"]
+D --> D3["listen()"]
+D3 --> E["서버 준비 완료"]
 
-E --> F["check_idle_clients()"]
-F --> G["poll(poll_fds)"]
+%% ===============================
+%% MAIN LOOP
+%% ===============================
+E --> F["메인 루프 시작"]
+F --> G{"while (서버 실행 중)"}
 
-G -->|timeout / EINTR| E
+%% ===============================
+%% WAIT
+%% ===============================
+G --> H["poll()로 이벤트 대기"]
 
-G --> H["for (pollfd in poll_fds)"]
+H -->|아무 일 없음| G
 
-%% =====================
-%% ACCEPT
-%% =====================
-H --> I{fd is listening?}
+%% ===============================
+%% NEW CONNECTION
+%% ===============================
+H --> I["이벤트 발생"]
+I --> J{새 클라이언트 연결?}
 
-I -->|Yes + POLLIN| J["accept_new_client(fd)"]
-J --> J1["accept()"]
-J1 --> J2["Client 생성"]
-J2 --> J3["poll_fds ← client fd (POLLIN)"]
-J3 --> E
+J -->|Yes| K["accept()"]
+K --> K1["Client 객체 생성"]
+K1 --> G
 
-%% =====================
-%% CLIENT DATA
-%% =====================
-I -->|No| K{revents}
+%% ===============================
+%% CLIENT REQUEST
+%% ===============================
+J -->|No| L{"클라이언트 소켓 이벤트?"}
 
-K -->|POLLERR/HUP| Z["close_connection(fd)"]
+L -->|오류| M["연결 종료"]
 
-K -->|POLLIN| L["receive_request(fd)"]
-L --> L1["recv()"]
-L1 -->|<=0| Z
+L -->|데이터 옴| N["recv()로 요청 읽기"]
 
-L1 --> L2["Client::handle_recv_data()"]
-L2 -->|in progress| E
-L2 -->|completed| M["state = REQUEST_COMPLETE"]
+N --> O{"요청 다 읽었나?"}
+O -->|No| G
 
-%% =====================
-%% RESPONSE BUILD
-%% =====================
-M --> N["Client::build_response()"]
-N --> N1["Response_Builder::build()"]
-N1 --> N2["response_buffer 생성"]
-N2 --> N3["poll fd → POLLOUT"]
+%% ===============================
+%% RESPONSE
+%% ===============================
+O -->|Yes| P["응답 생성"]
+P --> P1["요청 분석"]
+P1 --> P2["Response_Builder 실행"]
+P2 --> Q["send()로 응답 전송"]
 
-%% =====================
-%% SEND
-%% =====================
-K -->|POLLOUT| O["send_response(fd)"]
-O --> O1["send()"]
-O1 -->|partial| E
+%% ===============================
+%% CONNECTION DECISION
+%% ===============================
+Q --> R{"keep-alive?"}
+R -->|Yes| S["클라이언트 상태 초기화"]
+S --> G
 
-O1 -->|all sent| P{keep-alive?}
-
-P -->|Yes| Q["client.reset()"]
-Q --> Q1["poll fd → POLLIN"]
-Q1 --> E
-
-P -->|No| Z
-
-
+R -->|No| M
 
 
 ```

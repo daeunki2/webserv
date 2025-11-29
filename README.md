@@ -1,11 +1,12 @@
 ```mermaid
 
+
 flowchart TD
 
 %% ===============================
 %% PROGRAM STARTUP
 %% ===============================
-A["Program starts (./webserv config.txt)"]
+A["Program starts"]
   --> B["Parse configuration file"]
   --> C["Create Server_Manager"]
 
@@ -13,80 +14,78 @@ A["Program starts (./webserv config.txt)"]
 %% SERVER INITIALIZATION
 %% ===============================
 C --> D["Initialize server sockets"]
-D --> D1["socket()"]
-D --> D2["bind()"]
-D --> D3["listen()"]
+D --> D1["Create socket"]
+D1 --> D2["Bind address"]
+D2 --> D3["Listen on port"]
 D3 --> E["Server ready"]
 
 %% ===============================
 %% MAIN EVENT LOOP
 %% ===============================
 E --> F["Enter main loop"]
-F --> G{"Server running?"}
+F --> G{"Server running"}
 
-G --> H["poll(): wait for events"]
+G --> H["Poll and wait for events"]
 
-H -->|No events| G
+H -->|No activity| G
 
 %% ===============================
 %% EVENT DISPATCH
 %% ===============================
 H --> I["Event detected"]
-I --> J{Listening socket_ready?}
+I --> J{"Listening socket event"}
 
 %% ===============================
 %% NEW CLIENT CONNECTION
 %% ===============================
-J -->|Yes| K["accept() new connection"]
+J -->|Yes| K["Accept new connection"]
 K --> K1["Create Client object"]
-K1 --> K2["Register client socket to poll()"]
+K1 --> K2["Register client socket"]
 K2 --> G
 
 %% ===============================
 %% CLIENT SOCKET EVENT
 %% ===============================
-J -->|No| L{Client socket_event?}
+J -->|No| L{"Client socket event"}
 
-L -->|Error / Hangup| X["Close connection"]
+L -->|Error or hangup| X["Close connection"]
 
 %% ===============================
 %% RECEIVE REQUEST
 %% ===============================
-L -->|Readable (POLLIN)| M["recv(): read incoming data"]
-M --> N["Append data to Client buffer"]
-N --> O{"Is HTTP request complete?"}
+L -->|Readable| M["Receive data from client"]
+M --> N["Append data to client buffer"]
+N --> O{"Request fully received"}
 
 O -->|No| G
 
 %% ===============================
-%% REQUEST PARSING COMPLETE
+%% REQUEST COMPLETE
 %% ===============================
-O -->|Yes| P["Client state → REQUEST_COMPLETE"]
+O -->|Yes| P["Client state becomes REQUEST_COMPLETE"]
 P --> Q["Build HTTP response"]
-Q --> Q1["Analyze request (method, path, headers)"]
-Q1 --> Q2["Generate response via Response_Builder"]
-Q2 --> R["Prepare socket for sending (POLLOUT)"]
+Q --> Q1["Analyze request"]
+Q1 --> Q2["Generate response"]
+Q2 --> R["Prepare socket for writing"]
 
 %% ===============================
 %% SEND RESPONSE
 %% ===============================
-L -->|Writable (POLLOUT)| S["send(): transmit response"]
-S --> T{"Response fully sent?"}
+L -->|Writable| S["Send response"]
+S --> T{"Response fully sent"}
 
 T -->|No| G
 
 %% ===============================
 %% CONNECTION DECISION
 %% ===============================
-T -->|Yes| U{"Keep-Alive?"}
+T -->|Yes| U{"Keep connection alive"}
 
-U -->|Yes| V["Reset Client state"]
-V --> V1["Wait for next request on same connection"]
+U -->|Yes| V["Reset client state"]
+V --> V1["Wait for next request"]
 V1 --> G
 
 U -->|No| X
-
-
 
 
 ```

@@ -6,97 +6,81 @@ flowchart TD
 %% PROGRAM ENTRY
 %% ======================
 A["main()"] --> B{argc == 2?}
-B -->|No| B1["Logger::error\nUsage 출력 후 exit"]
-B -->|Yes| C["signal(SIGINT / SIGTERM) 등록"]
+B -->|No| B1["Usage 출력 & exit"]
+B -->|Yes| C["signal handler 등록"]
 
 C --> D["ConfigParser(config.txt)"]
-D --> D1["파일 read → tokenize()"]
-D1 --> D2["parse server / location blocks"]
-D2 --> E["vector<Server> 생성"]
+D --> D1["파일 read"]
+D1 --> D2["tokenize"]
+D2 --> D3["parse server / location blocks"]
+D3 --> E["vector<Server> 생성"]
 
 %% ======================
-%% SERVER INIT
+%% SERVER_MANAGER LIFECYCLE
 %% ======================
-E --> F["Server_Manager(servers)"]
-F --> F1["init_sockets()"]
-
-F1 --> G["for each Server"]
-G --> G1["socket()"]
-G1 --> G2["setsockopt(SO_REUSEADDR)"]
-G2 --> G3["O_NONBLOCK 설정"]
-G3 --> G4["bind(port)"]
-G4 --> G5["listen()"]
-
-G5 --> G6["listening_fd 저장"]
-G6 --> G7["fd → Server 매핑"]
-G7 --> G8["poll_fds에 POLLIN 등록"]
+E --> F["Server_Manager 생성자"]
+F --> F1["init_sockets() 호출"]
+F1 --> F2["socket / bind / listen"]
+F2 --> F3["listening fd → poll_fds 등록"]
+F3 --> G["Server_Manager::run()"]
 
 %% ======================
 %% MAIN LOOP
 %% ======================
-F --> H["Server_Manager::run()"]
-H --> I{g_running?}
-I -->|No| Z["모든 fd close 후 종료"]
+G --> H{"while (g_running)"}
+H --> I["check_idle_clients()"]
+I --> J["poll(poll_fds, timeout)"]
 
-I -->|Yes| J["check_idle_clients()"]
-J --> K["poll(poll_fds, TIMEOUT_MS)"]
+J -->|timeout| H
+J -->|EINTR| H
 
-K -->|EINTR| I
-K -->|timeout| I
-
-%% ======================
-%% POLL EVENTS
-%% ======================
-K --> L["for each pollfd"]
-
-L --> M{listening fd?}
-M -->|Yes| N["accept_new_client()"]
-N --> N1{"accept() 성공?"}
-N1 -->|EAGAIN| L
-N1 -->|Yes| N2["Client 객체 생성"]
-N2 --> N3["clients map 삽입"]
-N3 --> N4["poll_fds에 client fd (POLLIN)"]
-
-M -->|No| O{revents?}
+J --> K["iterate poll_fds"]
 
 %% ======================
-%% CLIENT EVENTS
+%% NEW CONNECTION
 %% ======================
-O -->|POLLERR/HUP| P["close_connection(fd)"]
-
-O -->|POLLIN| Q["receive_request(fd)"]
-Q --> Q1["recv()"]
-Q1 -->|<=0| P
-
-Q1 --> Q2["Client::handle_recv_data()"]
-Q2 -->|Parsing 완료| Q3["state = REQUEST_COMPLETE"]
+K --> L{listening fd?}
+L -->|Yes| M["accept_new_client()"]
+M --> M1["Client 생성"]
+M1 --> M2["client fd → poll_fds (POLLIN)"]
+M2 --> H
 
 %% ======================
-%% BUILD RESPONSE
+%% CLIENT SOCKET
 %% ======================
-Q3 --> R["Client::build_response()"]
+L -->|No| N{revents}
+
+N -->|POLLERR/HUP| O["close_connection(fd)"]
+
+N -->|POLLIN| P["receive_request(fd)"]
+P --> P1["recv()"]
+P1 -->|<=0| O
+
+P1 --> P2["Client::handle_recv_data()"]
+P2 -->|REQUEST_COMPLETE| Q["state = REQUEST_COMPLETE"]
+
+%% ======================
+%% RESPONSE BUILD
+%% ======================
+Q --> R["Client::build_response()"]
 R --> R1["Response_Builder::build()"]
-R1 --> R2["Location 매칭"]
-R2 --> R3["method / body / redirect 검사"]
-R3 --> R4["response_buffer 생성"]
-
-R4 --> R5["poll 이벤트 → POLLOUT"]
+R1 --> R2["response_buffer 생성"]
+R2 --> R3["poll fd 이벤트 → POLLOUT"]
 
 %% ======================
-%% SEND RESPONSE
+%% SEND
 %% ======================
-O -->|POLLOUT| S["send_response(fd)"]
-S --> S1["send() partial or full"]
-S1 --> S2{all sent?}
+N -->|POLLOUT| S["send_response(fd)"]
+S --> S1["send()"]
+S1 --> S2{keep-alive?}
 
-S2 -->|No| L
-S2 -->|Yes| T{keep-alive?}
+S2 -->|Yes| T["Client::reset()"]
+T --> T1["poll fd → POLLIN"]
+T1 --> H
 
-T -->|Yes| U["Client reset()"]
-U --> U1["poll 이벤트 → POLLIN"]
-U1 --> L
+S2 -->|No| O
 
-T -->|No| P
+
 
 ```
 

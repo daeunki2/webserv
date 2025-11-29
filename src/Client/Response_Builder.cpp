@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/28 19:42:46 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 17:16:16 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -14,7 +14,6 @@
 #include "Response_Builder.hpp"
 #include "Utils.hpp"
 #include "Logger.hpp"
-
 #include <sys/stat.h>
 #include <dirent.h>
 #include <fstream>
@@ -126,11 +125,9 @@ std::string Response_Builder::applyRoot(const Location *loc, const std::string &
 
     std::string url = path;
 
-    // Remove prefix only if location matches
     if (loc && path.compare(0, loc->getPath().size(), loc->getPath()) == 0)
         url = path.substr(loc->getPath().size());
 
-    // Ensure root does not end with slash
     if (!root.empty() && root[root.size() - 1] == '/')
         root.erase(root.size() - 1);
 
@@ -152,6 +149,9 @@ std::string Response_Builder::findErrorPage(int status) const
 
     return "";
 }
+/* ************************************************************************** */
+/*                            Response builders                                */
+/* ************************************************************************** */
 
 std::string Response_Builder::buildSimpleResponse(int status, const std::string &body)
 {
@@ -169,8 +169,6 @@ std::string Response_Builder::buildSimpleResponse(int status, const std::string 
 std::string Response_Builder::buildErrorResponse(int status, const std::string &msg)
 {
     std::string custom = findErrorPage(status);
-
-	   Logger::warn("[RESP] FD " + toString(_client->get_fd()) + " -> " + toString(status) + " " + statusMessage(status) + " (" + msg + ")");
 
     if (!custom.empty())
     {
@@ -255,9 +253,6 @@ std::string Response_Builder::buildAutoindexResponse(const std::string &fsPath, 
 std::string Response_Builder::buildFileResponse(const std::string &fsPath, int status)
 {
     std::ifstream f(fsPath.c_str(), std::ios::binary);
-
-	Logger::info("[RESP] FD " + toString(_client->get_fd()) + " -> " + toString(status) + " " + statusMessage(status) + " file=" + fsPath);
-
     if (!f)
 	{
         return buildErrorResponse(404, "File not found");
@@ -285,7 +280,7 @@ std::string Response_Builder::handleDelete(const Location *loc, const std::strin
     std::string fsPath = applyRoot(loc, path);
     struct stat st;
 
-    if (stat(fsPath.c_str(), &st) != 0)// 파일이 존재하지 않을때
+    if (stat(fsPath.c_str(), &st) != 0)
         return buildErrorResponse(404, "File not found");
 
     if (S_ISDIR(st.st_mode))
@@ -360,7 +355,7 @@ std::string Response_Builder::parseMultipart(const std::string &body,const std::
 
         if (filename.empty())
         {
-            Logger::warn("Skipping multipart part (no filename). Only text field or empty file.");
+//            Logger::warn("Skipping multipart part (no filename). Only text field or empty file.");
             pos = nextSep;
             continue;
         }
@@ -431,7 +426,7 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
     size_t bpos = ctype.find("boundary=");
     if (bpos == std::string::npos)
     {
-        Logger::warn("Missing multipart boundary");
+//        Logger::warn("Missing multipart boundary");
         return buildErrorResponse(400, "Missing multipart boundary");
     }
 
@@ -444,11 +439,11 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
     {
         if (err == "500")
         {
-            Logger::warn("Multipart upload failed (server error)");
+//            Logger::warn("Multipart upload failed (server error)");
             return buildErrorResponse(500, "Upload failed");
         }
 
-        Logger::warn("Malformed multipart request");
+//        Logger::warn("Malformed multipart request");
         return buildErrorResponse(400, "Malformed multipart body");
     }
 
@@ -466,11 +461,18 @@ std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
-    Logger::info("[REQ] FD " + toString(_client->get_fd()) + " " + method + " " + path);
 
-    if (_client->get_error_code() != 0)
+
+    Logger::info(Logger::TAG_REQ, "FD " + toString(_client->get_fd()) + " build response for " + method + " " + path);
+    
+	if (_client->get_error_code() != 0)
     {
         int code = _client->get_error_code();
+		
+		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " responding to parse error");
+        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd())+ " response decided: "+ toString(code) + " " + statusMessage(code)
+        );
+
         return buildErrorResponse(code, statusMessage(code));
     }
 
@@ -478,7 +480,9 @@ std::string Response_Builder::build()
 
     if (!isMethodAllowed(loc))
 	{
-		Logger::warn("Method Not Allowed");
+		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " method not allowed: " + method);
+
+        Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
         return buildErrorResponse(405, "Method Not Allowed");
 	}
     if (loc && loc->isRedirect())
@@ -486,11 +490,12 @@ std::string Response_Builder::build()
         return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
     }
 
-    if (method == "POST" &&
-        _req.get_body().size() > _server->getClientMaxBodySize())
+    if (method == "POST" && _req.get_body().size() > _server->getClientMaxBodySize())
     {
-		Logger::warn("Payload Too Large");
-        return buildErrorResponse(413, "Payload Too Large");
+		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " payload too large");
+
+        Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 413 Payload Too Large");
+		return buildErrorResponse(413, "Payload Too Large");
     }
 
     if (method == "GET")
@@ -504,4 +509,3 @@ std::string Response_Builder::build()
 
     return buildErrorResponse(501, "Not Implemented");
 }
-

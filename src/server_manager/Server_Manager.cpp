@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/28 17:43:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 16:33:36 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,14 +74,13 @@ void Server_Manager::set_fd_non_blocking(int fd)
 
 void Server_Manager::init_sockets()
 {
-    Logger::info("Initializing listening sockets...");
+    Logger::info(Logger::TAG_CORE, "Initializing listening sockets...");
 
     for (size_t i = 0; i < _servers.size(); ++i)
     {
         int fd = socket(AF_INET, SOCK_STREAM, 0);
         if (fd < 0)
-            throw Error("socket() failed: " + std::string(strerror(errno)),
-                        __FILE__, __LINE__);
+            throw Error("socket() failed: " + std::string(strerror(errno)),__FILE__, __LINE__);
 
         int optval = 1;
         if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
@@ -122,8 +121,7 @@ void Server_Manager::init_sockets()
         pfd.revents = 0;
         _poll_fds.push_back(pfd);
 
-        Logger::info("Listening on port " + toString(_servers[i].getPort()));
-    }
+        Logger::info(Logger::TAG_EVENT, "Listening on port " + toString(_servers[i].getPort()));    }
 }
 
 /* ************************************************************************** */
@@ -164,8 +162,7 @@ void Server_Manager::update_poll_events(int fd, short events)
 
 void Server_Manager::close_connection(int client_fd)
 {
-    Logger::info("Closing client FD " + toString(client_fd));
-
+    Logger::info(Logger::TAG_EVENT, "Closing client FD " + toString(client_fd));
     _clients.erase(client_fd);
 
     for (size_t i = 0; i < _poll_fds.size(); ++i)
@@ -178,8 +175,7 @@ void Server_Manager::close_connection(int client_fd)
     }
 
     if (close(client_fd) < 0)
-        Logger::error("close() failed for FD " + toString(client_fd) + ": " + std::string(strerror(errno)));
-}
+        Logger::error(Logger::TAG_FD, "close() failed for FD " + toString(client_fd) + ": " + std::string(strerror(errno)));}
 
 
 void Server_Manager::check_idle_clients()
@@ -193,8 +189,7 @@ void Server_Manager::check_idle_clients()
 
         if (now - last > IDLE_TIMEOUT_SECONDS)
         {
-            Logger::warn("Client FD " + toString(fd) + " idle timeout.");
-
+            Logger::warn(Logger::TAG_TIMEOUT, "Client FD " + toString(fd) + " idle timeout.");
             ++it;
             close_connection(fd);
         }
@@ -222,8 +217,8 @@ void Server_Manager::accept_new_client(int server_fd)
             {
                 return;
             }
-            Logger::error("accept() failed: " + std::string(strerror(errno)));
-            return;
+				Logger::error(Logger::TAG_EVENT, "accept() failed: " + std::string(strerror(errno)));
+				return;
         }
 
         set_fd_non_blocking(client_fd);
@@ -231,8 +226,8 @@ void Server_Manager::accept_new_client(int server_fd)
         Server *config = get_server_by_fd(server_fd);
         if (!config)
         {
-            Logger::error("No server config for FD " + toString(server_fd));
-            close(client_fd);
+			Logger::error(Logger::TAG_CONF, "No server config for FD " + toString(server_fd));
+			close(client_fd);
             continue;
         }
 
@@ -246,8 +241,8 @@ void Server_Manager::accept_new_client(int server_fd)
         pfd.revents = 0;
         _poll_fds.push_back(pfd);
 
-        Logger::info("Accepted new client FD " + toString(client_fd));
-    }
+      Logger::info(Logger::TAG_EVENT, "Accepted new client FD " + toString(client_fd));
+	}
 }
 
 
@@ -265,7 +260,7 @@ bool Server_Manager::receive_request(int fd)
     if (n <= 0)
     {
 		if(n < 0)
-		Logger::error("recv failed");
+		Logger::error(Logger::TAG_FD, "recv failed for fd " + toString(fd));
 		close_connection(fd);
         return true;
     }
@@ -276,7 +271,7 @@ bool Server_Manager::receive_request(int fd)
 
     if (st == Client::PARSING_COMPLETED)
     {
-		Logger::info("got request from FD " + toString(fd));
+		Logger::info(Logger::TAG_REQ,"got request from FD " + toString(fd));
         client.update_state(Client::REQUEST_COMPLETE);
     }
 
@@ -301,7 +296,7 @@ bool Server_Manager::send_response(int client_fd)
 
     if (bytes_sent < 0)
     {
-		Logger::error("send() failed");
+		Logger::error(Logger::TAG_FD, "send() failed for fd " + toString(client_fd));
         close_connection(client_fd);
         return true;
     }
@@ -321,7 +316,7 @@ bool Server_Manager::send_response(int client_fd)
         	client.update_state(Client::CONNECTION_CLOSE);
         	close_connection(client_fd);
     	}
-		Logger::info("send response to FD " + toString(client_fd));
+		Logger::info(Logger::TAG_EVENT,"send response to FD " + toString(client_fd));
     	return true;
 	}
     return false;
@@ -334,14 +329,14 @@ bool Server_Manager::send_response(int client_fd)
 
 void Server_Manager::run()
 {
-	Logger::info("ServerManager main loop started.");
+	Logger::info(Logger::TAG_CORE, "ServerManager main loop started.");
 
 	while (g_running)
 	{
 		check_idle_clients();
 		if (_poll_fds.empty())
 		{
-			Logger::error("No poll fds left. Exiting loop.");
+			Logger::error(Logger::TAG_POLL,"No poll fds left. Exiting loop.");
 			break;
 		}
 		int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
@@ -351,12 +346,12 @@ void Server_Manager::run()
 			{
 				if (!g_running)
 				{
-					Logger::info("ctrl + c situation. Exiting loop."); 
+					Logger::info(Logger::TAG_CORE,"ctrl + c situation. Exiting loop."); 
 					break;
 				}
 				continue;
 			}
-			Logger::error("poll() failed: " + std::string(strerror(errno)));
+			Logger::error(Logger::TAG_POLL,"poll() failed: " + std::string(strerror(errno)));
 		break;
 		}
 
@@ -382,7 +377,7 @@ void Server_Manager::run()
 
             if (pfd.revents & (POLLERR | POLLHUP | POLLNVAL))
             {
-                Logger::warn("poll error/hup on client FD " + toString(fd));
+                Logger::warn(Logger::TAG_POLL,"poll error/hup on client FD " + toString(fd));
                 close_connection(fd);
                 closed = true;
             }

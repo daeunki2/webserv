@@ -7,6 +7,19 @@
 class Logger
 {
 public:
+    /* Log tag */
+    enum Tag {
+        TAG_EVENT,
+        TAG_REQ,
+        TAG_CGI,
+        TAG_POLL,
+        TAG_CONF,
+        TAG_FD,
+        TAG_TIMEOUT,
+        TAG_CORE,
+        TAG_UNKNOWN
+    };
+
     /* Canonical */
     Logger();
     Logger(const Logger &o);
@@ -14,13 +27,15 @@ public:
     ~Logger();
 
     /* Static APIs */
-    static void info(const std::string &msg);
-    static void warn(const std::string &msg);
-    static void error(const std::string &msg);
-    static void debug(const std::string &msg);
+    static void info(Tag tag, const std::string &msg);
+    static void warn(Tag tag, const std::string &msg);
+    static void error(Tag tag, const std::string &msg);
+    static void debug(Tag tag, const std::string &msg);
 
 private:
     static std::string color(const std::string &msg, const std::string &code);
+    static std::string bracket(const std::string &s);
+    static std::string tagToString(Tag tag);
 };
 
 #endif

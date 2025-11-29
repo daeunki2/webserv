@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 12:22:15 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 17:10:36 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 
 #include <string>
 #include <vector>
+#include "Logger.hpp"
 #include "../Client/http_request.hpp"
 
 class RequestParser

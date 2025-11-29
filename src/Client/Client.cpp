@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/28 19:31:42 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 17:08:01 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -112,6 +112,7 @@ void Client::update_state(ClientState st)
 
 void Client::reset()
 {
+
     _parser.reset();
     _response_buffer.clear();
     _sent_bytes  = 0;
@@ -134,7 +135,7 @@ Client::handle_recv_data(const char* data, size_t size)
 
     if (st == RequestParser::PARSING_ERROR)
     {
-        Logger::warn("Parsing error on FD " + toString(_fd));
+        Logger::warn(Logger::TAG_REQ,"Parsing error on FD " + toString(_fd));
         _error_code = _parser.get_error_code(); 
         _state      = REQUEST_COMPLETE;
         return PARSING_COMPLETED;
@@ -155,6 +156,7 @@ Client::handle_recv_data(const char* data, size_t size)
 void Client::build_response()
 {
     const http_request& req = _parser.getRequest();
+	Logger::info(Logger::TAG_CORE, "Building response for FD " + toString(_fd) + " (" + req.get_method() + " " + req.get_path() + ")");
 
     Response_Builder builder(_server, req, this);
 

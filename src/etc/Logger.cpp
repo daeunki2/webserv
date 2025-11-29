@@ -6,9 +6,9 @@
 #define C_GREEN   "\033[32m"
 #define C_YELLOW  "\033[33m"
 #define C_CYAN    "\033[36m"
+#define C_GRAY    "\033[90m"
 
 /* Canonical */
-
 Logger::Logger() {}
 Logger::Logger(const Logger &o) { (void)o; }
 Logger &Logger::operator=(const Logger &o)
@@ -23,22 +23,55 @@ std::string Logger::color(const std::string &msg, const std::string &code)
     return code + msg + C_RESET;
 }
 
-void Logger::info(const std::string &msg)
+std::string Logger::bracket(const std::string &s)
 {
-    std::cout << color("[INFO] ", C_GREEN) << msg << std::endl;
+    return "[" + s + "] ";
 }
 
-void Logger::warn(const std::string &msg)
+std::string Logger::tagToString(Tag tag)
 {
-    std::cout << color("[WARN] ", C_YELLOW) << msg << std::endl;
+    switch (tag)
+    {
+        case TAG_EVENT:   return "EVENT";
+        case TAG_REQ:     return "REQ";
+        case TAG_CGI:     return "CGI";
+        case TAG_POLL:    return "POLL";
+        case TAG_CONF:    return "CONF";
+        case TAG_FD:      return "FD";
+        case TAG_TIMEOUT: return "TIMEOUT";
+        case TAG_CORE:    return "CORE";
+        default:          return "UNKNOWN";
+    }
 }
 
-void Logger::error(const std::string &msg)
+void Logger::info(Tag tag, const std::string &msg)
 {
-    std::cout << color("[ERROR] ", C_RED) << msg << std::endl;
+    std::cout
+        << color(bracket("INFO"), C_GREEN)
+        << color(bracket(tagToString(tag)), C_GRAY)
+        << msg << std::endl;
 }
 
-void Logger::debug(const std::string &msg)
+void Logger::warn(Tag tag, const std::string &msg)
 {
-    std::cout << color("[DEBUG] ", C_CYAN) << msg << std::endl;
+    std::cout
+        << color(bracket("WARN"), C_YELLOW)
+        << color(bracket(tagToString(tag)), C_GRAY)
+        << msg << std::endl;
+}
+
+void Logger::error(Tag tag, const std::string &msg)
+{
+    std::cout
+        << color(bracket("ERROR"), C_RED)
+        << color(bracket(tagToString(tag)), C_GRAY)
+        << msg << std::endl;
+}
+
+void Logger::debug(Tag tag, const std::string &msg)
+{
+    std::cout
+        << color(bracket("DEBUG"), C_CYAN)
+        << color(bracket(tagToString(tag)), C_GRAY)
+        << msg << std::endl;
 }

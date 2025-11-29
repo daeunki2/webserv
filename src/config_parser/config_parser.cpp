@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/20 10:54:34 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 16:32:43 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -47,7 +47,7 @@ void ConfigParser::parse(const std::string &path)
     if (!file.is_open())
         throw Error("Cannot open config: " + path, __FILE__, __LINE__);
 
-    Logger::info("Loading config: " + path);
+    Logger::info(Logger::TAG_CONF,"Loading config: " + path);
 
     std::string line;
     while (std::getline(file, line))

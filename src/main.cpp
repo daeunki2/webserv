@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/24 10:03:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/24 10:08:30 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 16:22:49 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,29 +35,25 @@ int main(int argc, char **argv)
 		signal(SIGTERM, signal_handler);
         std::string configFile = argv[1];
 
-        Logger::info("Loading config: " + configFile);
-
         ConfigParser parser(configFile);
         const std::vector<Server> &servers = parser.getServers();
-
-        Logger::info("Config loaded. Initializing server manager...");
 
         Server_Manager manager(servers);
         manager.run();
     }
     catch (const Error &e)
     {
-        Logger::error("Fatal error: " + std::string(e.what()));
+        Logger::error(Logger::TAG_CORE, "Fatal error: " + std::string(e.what()));
         return 1;
     }
     catch (const std::exception &e)
     {
-        Logger::error("Unhandled std::exception: " + std::string(e.what()));
+        Logger::error(Logger::TAG_CORE,"Unhandled std::exception: " + std::string(e.what()));
         return 1;
     }
     catch (...)
     {
-        Logger::error("Unknown fatal error occurred.");
+        Logger::error(Logger::TAG_CORE, "Unknown fatal error occurred.");
         return 1;
     }
 

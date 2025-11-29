@@ -1,3 +1,4 @@
+```mermaid
 flowchart TD
 
     %% ==== PROGRAM START ====
@@ -38,3 +39,10 @@ flowchart TD
     P --> P1([Create Client object])
     P1 --> P2([Insert client fd → poll_fds])
     P2
+
+
+
+'''
+
+
+

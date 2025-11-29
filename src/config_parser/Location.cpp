@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   location.cpp                                       :+:      :+:    :+:   */
+/*   Location.cpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:12 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:10:51 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 17:41:08 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,15 +15,11 @@
 /* Canonical form */
 
 Location::Location()
-: _path(""), _root(""), _index("index.html"),
-  _autoindex(false), _uploadPath(""),
-  _isRedirect(false), _redirectCode(0)
+: _path(""), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0)
 {}
 
 Location::Location(const std::string &path)
-: _path(path), _root(""), _index("index.html"),
-  _autoindex(false), _uploadPath(""),
-  _isRedirect(false), _redirectCode(0)
+: _path(path), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0)
 {}
 
 Location::Location(const Location &o)

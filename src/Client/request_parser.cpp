@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 16:46:06 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 17:27:02 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -257,7 +257,8 @@ RequestParser::parse_headers()
                 _state = BODY;
             }
             else
-			{Logger::info(Logger::TAG_REQ, "HTTP request parsed: " + _request.get_method() + " " + _request.get_uri());
+			{
+			//	Logger::info(Logger::TAG_REQ, "HTTP request parsed: " + _request.get_method() + " " + _request.get_uri());
                 _state = COMPLETE;
 			}
             return PARSING_IN_PROGRESS;
@@ -365,7 +366,7 @@ RequestParser::parse_body()
 
     _content_to_read = 0;
     _state = COMPLETE;
-	Logger::info(Logger::TAG_REQ, "HTTP request parsed: "+ _request.get_method()+ " " + _request.get_uri());
+//	Logger::info(Logger::TAG_REQ, "HTTP request parsed: "+ _request.get_method()+ " " + _request.get_uri());
     return PARSING_IN_PROGRESS;
 }
 
@@ -410,7 +411,7 @@ RequestParser::parse_chunk_size()
     if (_chunk_size == 0)
     {
         _state = COMPLETE;
-		Logger::info(Logger::TAG_REQ, "HTTP request parsed (chunked): " + _request.get_method() + " " + _request.get_uri());
+//		Logger::info(Logger::TAG_REQ, "HTTP request parsed (chunked): " + _request.get_method() + " " + _request.get_uri());
         return PARSING_IN_PROGRESS;
     }
 

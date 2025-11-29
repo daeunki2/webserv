@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/24 10:03:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 16:22:49 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/11/29 17:42:58 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 {
     if (argc != 2)
     {
-        std::cerr << "Usage: ./webserv <config_file>" << std::endl;
+        Logger::error(Logger::TAG_CORE, "Usage : ./webserv config.txt");
         return 1;
     }
     try

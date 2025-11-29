@@ -2,124 +2,118 @@
 
 flowchart TD
 
-%% ===============================
-%% PROGRAM STARTUP
-%% ===============================
-A["Program starts"]
+%% =================================================
+%% PROGRAM LIFECYCLE
+%% =================================================
+A["Program start"]
   --> B["Parse configuration file"]
   --> C["Create Server_Manager"]
+  --> D["Initialize server sockets"]
+  --> D1["Create socket"]
+  --> D2["Bind address"]
+  --> D3["Listen on port"]
+  --> E["Server ready"]
 
-%% ===============================
-%% SERVER INITIALIZATION
-%% ===============================
-C --> D["Initialize server sockets"]
-D --> D1["Create socket"]
-D1 --> D2["Bind address"]
-D2 --> D3["Listen on port"]
-D3 --> E["Server ready"]
-
-%% ===============================
-%% MAIN EVENT LOOP
-%% ===============================
-E --> F["Enter main loop"]
+%% =================================================
+%% SERVER MAIN LOOP
+%% =================================================
+E --> F["Enter server main loop"]
 F --> G{"Server running"}
 
-G --> H["Poll and wait for events"]
+G --> H["poll() and wait for events"]
+H -->|No events| G
 
-H -->|No activity| G
-
-%% ===============================
+%% =================================================
 %% EVENT DISPATCH
-%% ===============================
+%% =================================================
 H --> I["Event detected"]
+
 I --> J{"Listening socket event"}
 
-%% ===============================
-%% NEW CLIENT CONNECTION
-%% ===============================
-J -->|Yes| K["Accept new connection"]
+%% =================================================
+%% ACCEPT NEW CLIENT
+%% =================================================
+J -->|Yes| K["accept new connection"]
 K --> K1["Create Client object"]
 K1 --> K2["Register client socket"]
 K2 --> G
 
-%% ===============================
+%% =================================================
 %% CLIENT SOCKET EVENT
-%% ===============================
+%% =================================================
 J -->|No| L{"Client socket event"}
 
-L -->|Error or hangup| X["Close connection"]
+L -->|Error or hangup| Z["Close connection"]
 
-%% ===============================
-%% RECEIVE REQUEST
-%% ===============================
+%% =================================================
+%% RECEIVE REQUEST (CLIENT LIFECYCLE)
+%% =================================================
 L -->|Readable| M["Receive data from client"]
 M --> N["Append data to client buffer"]
 N --> O{"Request fully received"}
 
 O -->|No| G
 
-%% ===============================
-%% REQUEST COMPLETE
-%% ===============================
-O -->|Yes| P["Client state becomes REQUEST_COMPLETE"]
+%% =================================================
+%% RESPONSE PHASE (INSIDE SERVER LOOP)
+%% =================================================
+O -->|Yes| P["Client state: REQUEST_COMPLETE"]
+P --> Q["Start response building"]
 
-%% ===============================
-%% RESPONSE DECISION
-%% ===============================
-P --> R["Start response building"]
-R --> R1["Validate request syntax"]
-R1 --> R2{"Parsing error"}
+%% -------------------------------------------------
+%% RESPONSE DECISION TREE
+%% -------------------------------------------------
+Q --> Q1["Validate request"]
+Q1 --> Q2{"Parse error"}
 
-R2 -->|Yes| ER["Build error response"]
-R2 -->|No| R3["Match server and location block"]
+Q2 -->|Yes| ER["Build error response"]
+Q2 -->|No| Q3["Match server and location"]
 
-R3 --> R4{"Method allowed"}
+Q3 --> Q4{"Method allowed"}
+Q4 -->|No| ER
 
-R4 -->|No| ER
+Q4 -->|Yes| Q5{"Redirect configured"}
+Q5 -->|Yes| RR["Build redirect response"]
 
-R4 -->|Yes| R5{"Redirect configured"}
+Q5 -->|No| Q6{"Request body too large"}
+Q6 -->|Yes| ER
 
-R5 -->|Yes| RR["Build redirect response"]
-R5 -->|No| R6{"Request body too large"}
+%% -------------------------------------------------
+%% HTTP METHOD HANDLING
+%% -------------------------------------------------
+Q6 -->|No| Q7{"HTTP method"}
 
-R6 -->|Yes| ER
+Q7 -->|GET| G1["Handle GET request"]
+Q7 -->|POST| P1["Handle POST request"]
+Q7 -->|DELETE| DREQ["Handle DELETE request"]
+Q7 -->|Other| ER
 
-%% ===============================
-%% METHOD HANDLING
-%% ===============================
-R6 -->|No| R7{"HTTP method"}
+G1 --> R["Build final response"]
+P1 --> R
+DREQ --> R
+RR --> R
+ER --> R
 
-R7 -->|GET| G1["Handle GET request"]
-R7 -->|POST| P1["Handle POST request"]
-R7 -->|DELETE| D1["Handle DELETE request"]
-R7 -->|Other| ER
-
-G1 --> R8["Build final response"]
-P1 --> R8
-D1 --> R8
-RR --> R8
-ER --> R8
-
-R8 --> R9["Prepare socket for writing"]
-
-%% ===============================
+%% =================================================
 %% SEND RESPONSE
-%% ===============================
-L -->|Writable| S["Send response"]
-S --> T{"Response fully sent"}
+%% =================================================
+R --> S["Prepare socket for writing"]
 
-T -->|No| G
+L -->|Writable| T["Send response"]
+T --> U{"Response fully sent"}
 
-%% ===============================
+U -->|No| G
+
+%% =================================================
 %% CONNECTION DECISION
-%% ===============================
-T -->|Yes| U{"Keep connection alive"}
+%% =================================================
+U -->|Yes| V{"Keep connection alive"}
 
-U -->|Yes| V["Reset client state"]
-V --> V1["Return to waiting"]
-V1 --> G
+V -->|Yes| W["Reset client state"]
+W --> W1["Wait for next request"]
+W1 --> G
 
-U -->|No| X
+V -->|No| Z
 
 
 

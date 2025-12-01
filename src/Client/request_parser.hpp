@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:10:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 11:16:53 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 
 #include <string>
 #include <vector>
+#include <climits>
 #include "Logger.hpp"
 #include "../Client/http_request.hpp"
 
@@ -52,7 +53,10 @@ private:
 	long long _content_to_read;
 	long long _chunk_size;
 	bool      _is_chunked;
+	long long _max_body_size;
+	size_t _body_received;
 
+	
 private:
 	// internal helpers
 	bool extract_line(std::string& line);
@@ -80,8 +84,11 @@ public:
 
     // reset for keep-alive
 	void reset();
+	
 	//getter
 	int	get_error_code() const;
+	//setter
+	void set_max_body_size(long long max);
 };
 
 #endif

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 16:32:43 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 09:49:36 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -231,7 +231,7 @@ void ConfigParser::parseLocationBlock(Server &srv)
         if (t == "}")
         {
             expect("}");
-            srv.addLocation(loc);std::vector<Server> _servers;
+            srv.addLocation(loc);
             return;
         }
         else if (t == "root")
@@ -285,7 +285,10 @@ void ConfigParser::parseLocationBlock(Server &srv)
             loc.setCgi(ext, path);
         }
         else
+		{
+			std::cout << t << std::endl;
             throw Error("Unexpected token inside location: " + t, __FILE__, __LINE__);
+		}
     }
 }
 

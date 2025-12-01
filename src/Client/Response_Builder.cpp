@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:16:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 13:15:46 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -131,7 +131,6 @@ std::string Response_Builder::applyRoot(const Location *loc, const std::string &
     if (!root.empty() && root[root.size() - 1] == '/')
         root.erase(root.size() - 1);
 
-    // Ensure url starts with slash
     if (url.empty() || url[0] != '/')
         url = "/" + url;
 
@@ -159,7 +158,8 @@ std::string Response_Builder::buildSimpleResponse(int status, const std::string 
 
     oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
     oss << "Content-Length: " << body.size() << "\r\n";
-    oss << "Content-Type: text/html\r\n";
+	if (!body.empty())
+		oss << "Content-Type: text/html\r\n";
 	oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
     oss << body;
 
@@ -204,17 +204,11 @@ std::string Response_Builder::buildRedirectResponse(int status, const std::strin
 {
     std::ostringstream oss;
 
-    std::string body =
-        "<html><body><h1>Redirect</h1>"
-        "<p><a href=\"" + url + "\">" + url + "</a></p>"
-        "</body></html>";
-
     oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
     oss << "Location: " << url << "\r\n";
-    oss << "Content-Length: " << body.size() << "\r\n";
-    oss << "Content-Type: text/html\r\n";
-		oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
-    oss << body;
+    oss << "Content-Length: 0\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
 
     return oss.str();
 }
@@ -289,7 +283,7 @@ std::string Response_Builder::handleDelete(const Location *loc, const std::strin
     if (remove(fsPath.c_str()) != 0)
         return buildErrorResponse(500, "Delete failed");
 
-    return buildSimpleResponse(200, "<html><body><h1>Deleted</h1></body></html>");
+    return buildSimpleResponse(200, "");
 }
 
 std::string Response_Builder::sanitizeFilename(const std::string &name)
@@ -374,10 +368,10 @@ std::string Response_Builder::parseMultipart(const std::string &body,const std::
 
     return "";
 }
-
 std::string Response_Builder::handleGet(const Location *loc)
 {
-    std::string fsPath = applyRoot(loc, _req.get_path());
+    std::string reqPath = _req.get_path();
+    std::string fsPath  = applyRoot(loc, reqPath);
 
     struct stat st;
     if (stat(fsPath.c_str(), &st) < 0)
@@ -385,39 +379,39 @@ std::string Response_Builder::handleGet(const Location *loc)
 
     if (S_ISDIR(st.st_mode))
     {
-        const std::string &reqPath = _req.get_path();
-
         if (!reqPath.empty() && reqPath[reqPath.size() - 1] != '/')
-        {
-            std::string location = reqPath + "/";
-            return "HTTP/1.1 301 Moved Permanently\r\n"
-                   "Location: " + location + "\r\n"
-                   "Content-Length: 0\r\n"
-                   "Connection: " + std::string(_req.keep_alive() ? "keep-alive" : "close") +
-                   "\r\n\r\n";
-        }
+            return buildRedirectResponse(301, reqPath + "/");
 
         if (loc && !loc->getIndex().empty())
         {
-            std::string idx = fsPath + "/" + loc->getIndex();
-            if (stat(idx.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-                return buildFileResponse(idx, 200);
+            std::string idxPath = fsPath;
+            if (idxPath[idxPath.size() - 1] != '/')
+                idxPath += "/";
+            idxPath += loc->getIndex();
+
+            if (stat(idxPath.c_str(), &st) == 0 && S_ISREG(st.st_mode))
+                return buildFileResponse(idxPath, 200);
         }
 
-        // autoindex
-		if (loc && loc->getAutoindex())
-    		return buildAutoindexResponse(fsPath, _req.get_path());
-        return buildErrorResponse(403, "Forbidden");
+        if (loc && loc->getAutoindex())
+            return buildAutoindexResponse(fsPath, reqPath);
+
+        return buildErrorResponse(404, "Not Found");
     }
 
     return buildFileResponse(fsPath, 200);
 }
 
+
+
 std::string Response_Builder::handlePost(const Location *loc, const std::string &path)
 {
     (void)path;
-
-    if (!loc || loc->getUploadPath().empty())
+    if (_client->get_error_code() == 413)
+    {
+        return buildErrorResponse(413, "Payload Too Large");
+    }
+    if (!loc )
         return buildSimpleResponse(200, "<html><body><h1>POST OK</h1></body></html>");
 
     std::string uploadDir = loc->getUploadPath();
@@ -485,24 +479,30 @@ std::string Response_Builder::build()
         Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
         return buildErrorResponse(405, "Method Not Allowed");
 	}
+
+	
     if (loc && loc->isRedirect())
     {
         return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
     }
 
-    if (method == "POST" && _req.get_body().size() > _server->getClientMaxBodySize())
+    if (method == "HEAD")
     {
-		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " payload too large");
-
-        Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 413 Payload Too Large");
-		return buildErrorResponse(413, "Payload Too Large");
+        std::string res = handleGet(loc);
+        size_t pos = res.find("\r\n\r\n");
+        if (pos != std::string::npos)
+            res.erase(pos + 4);
+        return res;
     }
-
+	
     if (method == "GET")
         return handleGet(loc);
 
     if (method == "POST")
-        return handlePost(loc, path);
+	{
+		// //normal
+		return handlePost(loc, path);
+	}	
 
     if (method == "DELETE")
         return handleDelete(loc, path);

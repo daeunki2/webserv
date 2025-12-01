@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:08:01 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 11:17:19 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,6 +31,7 @@ Client::Client()
 Client::Client(int fd, Server* server)
 : _fd(fd), _server(server),_parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false),last_active_time(time(NULL))
 {
+	_parser.set_max_body_size(server->getClientMaxBodySize());
 }
 
 Client::Client(const Client &o)
@@ -142,7 +143,6 @@ Client::handle_recv_data(const char* data, size_t size)
     }
     else if (st == RequestParser::PARSING_COMPLETED)
     {
-        _state = REQUEST_COMPLETE;
         return PARSING_COMPLETED;
     }
 

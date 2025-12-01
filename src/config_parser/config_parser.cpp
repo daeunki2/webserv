@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 14:55:47 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 16:45:27 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -43,6 +43,11 @@ ConfigParser::~ConfigParser()
 
 void ConfigParser::parse(const std::string &path)
 {
+    _lines.clear();
+    _tokens.clear();
+    _servers.clear();
+    _i = 0;
+	
     std::ifstream file(path.c_str());
     if (!file.is_open())
         throw Error("Cannot open config: " + path, __FILE__, __LINE__);
@@ -289,13 +294,12 @@ void ConfigParser::parseLocationBlock(Server &srv)
 			next();
 			std::string size = next();
 			expect(";");
-		    if (!isNumber(size))
-        		throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
-    		loc.setClientMaxBodySize(toInt(size));
+			if (!isNumber(size))
+				throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
+			loc.setClientMaxBodySize(toInt(size));
 		}
         else
 		{
-			std::cout << t << std::endl;
             throw Error("Unexpected token inside location: " + t, __FILE__, __LINE__);
 		}
     }

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:12 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 14:49:03 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 16:47:36 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -74,6 +74,7 @@ void Location::setRedirect(int code, const std::string &url)
 
 void Location::setCgi(const std::string &ext, const std::string &path)
 {
+	_hasCgi = true;
     _cgiExtension = ext;
     _cgiPath = path;
 }
@@ -101,4 +102,9 @@ bool Location::hasClientMaxBodySize() const
 size_t Location::getClientMaxBodySize() const
 {
     return _clientMaxBodySize;
+}
+
+bool Location::hasCgi() const
+{
+	return _hasCgi;
 }

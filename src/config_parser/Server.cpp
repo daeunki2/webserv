@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:08 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 16:21:44 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 18:20:51 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,8 +15,7 @@
 /* Canonical */
 
 Server::Server()
-: _port(0), _serverName(""), _root(""),
-  _clientMaxBodySize(0) // 1MB default
+: _port(0), _serverName(""), _root(""),_clientMaxBodySize(0), _hasCgi(false)
 {}
 
 Server::Server(const Server &o)
@@ -34,6 +33,7 @@ Server &Server::operator=(const Server &o)
         _clientMaxBodySize = o._clientMaxBodySize;
         _locations = o._locations;
         _errorPages = o._errorPages;
+		_hasCgi = o._hasCgi;
     }
     return *this;
 }

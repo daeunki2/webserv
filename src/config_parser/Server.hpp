@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   server.hpp                                         :+:      :+:    :+:   */
+/*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:01 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:11:01 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 16:48:12 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -28,8 +28,11 @@ private:
     std::string _serverName;
     std::string _root;
     size_t _clientMaxBodySize;
+	bool        _hasCgi;
+	std::string _cgiExtension;
+	std::string _cgiPath;
 
-    std::vector<Location> _locations;
+	std::vector<Location> _locations;
     std::vector<std::pair<int, std::string> > _errorPages; // code → file
 
 public:

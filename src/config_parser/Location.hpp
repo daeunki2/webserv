@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:05 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 14:41:55 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 16:47:20 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -40,6 +40,7 @@ private:
     // CGI
     std::string _cgiExtension;
     std::string _cgiPath;
+	bool        _hasCgi;
 
 public:
     /* Canonical form */
@@ -77,6 +78,7 @@ public:
 	bool   hasClientMaxBodySize() const;
 	size_t getClientMaxBodySize() const;
 	
+	bool hasCgi() const;
     const std::string &getCgiExtension() const;
     const std::string &getCgiPath() const;
 };

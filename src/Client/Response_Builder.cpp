@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 14:26:19 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 18:53:11 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -217,55 +217,6 @@ std::string Response_Builder::buildErrorResponse(int status, const std::string &
 
     return buildSimpleResponse(status, defaultBody.str());
 }
-
-
-// std::string Response_Builder::buildSimpleResponse(int status, const std::string &body)
-// {
-//     std::ostringstream oss;
-
-//     oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
-//     oss << "Content-Length: " << body.size() << "\r\n";
-// 	if (!body.empty())
-// 		oss << "Content-Type: text/html\r\n";
-// 	oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
-//     oss << body;
-
-//     return oss.str();
-// }
-
-// std::string Response_Builder::buildErrorResponse(int status, const std::string &msg)
-// {
-//     std::string custom = findErrorPage(status);
-
-//     if (!custom.empty())
-//     {
-//         std::string fsPath = applyRoot(NULL, custom);
-
-//         std::ifstream f(fsPath.c_str(), std::ios::binary);
-//         if (f)
-//         {
-//             std::ostringstream buf;
-//             buf << f.rdbuf();
-//             std::string content = buf.str();
-
-//             std::ostringstream oss;
-//             oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
-//             oss << "Content-Length: " << content.size() << "\r\n";
-//             oss << "Content-Type: text/html; charset=UTF-8\r\n";
-// 			oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
-//             oss << content;
-
-//             return oss.str();
-//         }
-//     }
-
-//     std::ostringstream defaultBody;
-//     defaultBody << "<html><body><h1>" << status << " "
-//                 << statusMessage(status)
-//                 << "</h1><p>" << msg << "</p></body></html>";
-
-//     return buildSimpleResponse(status, defaultBody.str());
-// }
 
 std::string Response_Builder::buildRedirectResponse(int status, const std::string &url)
 {

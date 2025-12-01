@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 16:24:31 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 19:45:41 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -151,7 +151,7 @@ Client::handle_recv_data(const char* data, size_t size)
 
 
 /* ************************************************************************** */
-/*                          ResponseBuilder 연결                                */
+/*                          ResponseBuilder                                   */
 /* ************************************************************************** */
 
 void Client::build_response()
@@ -160,10 +160,9 @@ void Client::build_response()
 	Logger::info(Logger::TAG_CORE, "Building response for FD " + toString(_fd) + " (" + req.get_method() + " " + req.get_path() + ")");
 
     Response_Builder builder(_server, req, this);
-
     std::string response;
 
-	response = builder.build();
+	response = builder.build();// the real build logic
 
     _response_buffer = response;
     _sent_bytes      = 0;

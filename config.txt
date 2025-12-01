@@ -30,26 +30,30 @@ server {
 }
 
 
-
-
-
 server {
     listen 8181;
-    server_name cheese;
+    server_name u_tester;
 
     root ./www/test2;
 
     location / {
         index index_w.html;
+        allowed_methods GET;
     }
 
-    location /upload {
-        root ./www/test2/upload;
-        autoindex on;
-        upload ./www/test2/upload;
+    location /post_body {
+        allowed_methods POST;
+        client_max_body_size 100;
+    }
+
+    location /directory/ {
+        root ./YoupiBanane;
+        index youpi.bad_extension;
+        autoindex off;
+        allowed_methods GET POST;
+        cgi .bla ./cgi-bin/baguette.py;
     }
 }
-
 
 
 server {

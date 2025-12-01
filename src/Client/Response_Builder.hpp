@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/28 19:18:47 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 18:40:54 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -54,8 +54,14 @@ private:
 	std::string handleDelete(const Location *loc, const std::string &path);
 
 	/* POST helpers */
-std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
-public:
+	std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
+	/*CGI*/
+	
+bool isCgiRequest(const Location* loc, const std::string& path) const;
+char** buildCgiEnv() const;
+std::string handleCgi(const Location* loc);
+std::string buildHttpResponseFromCgi(const std::string& cgiOutput);
+	public:
     Response_Builder(Server* server, const http_request& req, Client* client);
     ~Response_Builder();
 

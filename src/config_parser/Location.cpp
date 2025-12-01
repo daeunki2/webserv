@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:12 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 16:47:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 18:36:20 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,11 +15,11 @@
 /* Canonical form */
 
 Location::Location()
-: _path(""), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0),  _clientMaxBodySize(0),  _hasClientMaxBodySize(false)
+: _path(""), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0),  _clientMaxBodySize(0),  _hasClientMaxBodySize(false), _hasCgi(false) 
 {}
 
 Location::Location(const std::string &path)
-: _path(path), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0), _clientMaxBodySize(0),  _hasClientMaxBodySize(false)
+: _path(path), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0), _clientMaxBodySize(0),  _hasClientMaxBodySize(false), _hasCgi(false) 
 {}
 
 Location::Location(const Location &o)
@@ -47,6 +47,7 @@ Location &Location::operator=(const Location &o)
 
 		_clientMaxBodySize = o._clientMaxBodySize;
 		_hasClientMaxBodySize = o._hasClientMaxBodySize;
+		_hasCgi = o._hasCgi;
     }
     return *this;
 }

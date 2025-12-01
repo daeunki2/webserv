@@ -3,7 +3,6 @@ server {
     server_name tester;
 
     root ./www/test1;
-    client_max_body_size 100;
 
     location / {
         index index_b.html;
@@ -12,9 +11,11 @@ server {
 
     location /post_body {
         allowed_methods POST;
+        client_max_body_size 100;
     }
 
     location /directory {
+        allowed_methods GET;
         return 301 /directory/;
     }
 
@@ -22,9 +23,13 @@ server {
         root ./YoupiBanane;
         index youpi.bad_extension;
         autoindex off;
-        allowed_methods GET;
+
+        allowed_methods GET POST;
+        cgi .bla ./cgi_test;
     }
 }
+
+
 
 
 

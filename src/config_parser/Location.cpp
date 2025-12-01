@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:12 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:41:08 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:49:03 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,11 +15,11 @@
 /* Canonical form */
 
 Location::Location()
-: _path(""), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0)
+: _path(""), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0),  _clientMaxBodySize(0),  _hasClientMaxBodySize(false)
 {}
 
 Location::Location(const std::string &path)
-: _path(path), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0)
+: _path(path), _root(""), _index("index.html"), _autoindex(false), _uploadPath(""), _isRedirect(false), _redirectCode(0), _clientMaxBodySize(0),  _hasClientMaxBodySize(false)
 {}
 
 Location::Location(const Location &o)
@@ -44,6 +44,9 @@ Location &Location::operator=(const Location &o)
 
         _cgiExtension = o._cgiExtension;
         _cgiPath = o._cgiPath;
+
+		_clientMaxBodySize = o._clientMaxBodySize;
+		_hasClientMaxBodySize = o._hasClientMaxBodySize;
     }
     return *this;
 }
@@ -57,7 +60,11 @@ void Location::addMethod(const std::string &m) { _methods.push_back(m); }
 void Location::setIndex(const std::string &idx) { _index = idx; }
 void Location::setAutoindex(bool e) { _autoindex = e; }
 void Location::setUploadPath(const std::string &p) { _uploadPath = p; }
-
+void Location::setClientMaxBodySize(size_t size)
+{
+    _clientMaxBodySize = size;
+    _hasClientMaxBodySize = true;
+}
 void Location::setRedirect(int code, const std::string &url)
 {
     _isRedirect = true;
@@ -86,3 +93,12 @@ const std::string &Location::getRedirectUrl() const { return _redirectUrl; }
 
 const std::string &Location::getCgiExtension() const { return _cgiExtension; }
 const std::string &Location::getCgiPath() const { return _cgiPath; }
+bool Location::hasClientMaxBodySize() const
+{
+    return _hasClientMaxBodySize;
+}
+
+size_t Location::getClientMaxBodySize() const
+{
+    return _clientMaxBodySize;
+}

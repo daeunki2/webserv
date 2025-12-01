@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 14:30:48 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 11:16:53 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:51:56 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -55,6 +55,8 @@ private:
 	bool      _is_chunked;
 	long long _max_body_size;
 	size_t _body_received;
+    bool           _expect_continue;
+	bool _max_body_configured;
 
 	
 private:
@@ -87,8 +89,11 @@ public:
 	
 	//getter
 	int	get_error_code() const;
+	bool isMaxBodyConfigured() const;
+
 	//setter
 	void set_max_body_size(long long max);
+
 };
 
 #endif

@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   location.hpp                                       :+:      :+:    :+:   */
+/*   Location.hpp                                       :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:05 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:10:40 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:41:55 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -35,6 +35,8 @@ private:
     int _redirectCode;
     std::string _redirectUrl;
 
+	size_t _clientMaxBodySize;
+	bool   _hasClientMaxBodySize;
     // CGI
     std::string _cgiExtension;
     std::string _cgiPath;
@@ -54,6 +56,9 @@ public:
     void setAutoindex(bool enable);
     void setUploadPath(const std::string &p);
 
+	void setClientMaxBodySize(size_t size);
+
+
     void setRedirect(int code, const std::string &url);
     void setCgi(const std::string &ext, const std::string &path);
 
@@ -69,6 +74,9 @@ public:
     int getRedirectCode() const;
     const std::string &getRedirectUrl() const;
 
+	bool   hasClientMaxBodySize() const;
+	size_t getClientMaxBodySize() const;
+	
     const std::string &getCgiExtension() const;
     const std::string &getCgiPath() const;
 };

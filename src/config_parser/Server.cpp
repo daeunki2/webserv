@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   server.cpp                                         :+:      :+:    :+:   */
+/*   Server.cpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:08 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:11:12 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 16:21:44 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -16,7 +16,7 @@
 
 Server::Server()
 : _port(0), _serverName(""), _root(""),
-  _clientMaxBodySize(1000000) // 1MB default
+  _clientMaxBodySize(0) // 1MB default
 {}
 
 Server::Server(const Server &o)

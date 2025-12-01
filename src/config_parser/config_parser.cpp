@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 09:49:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:55:47 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -284,6 +284,15 @@ void ConfigParser::parseLocationBlock(Server &srv)
             expect(";");
             loc.setCgi(ext, path);
         }
+		else if (t == "client_max_body_size")
+		{
+			next();
+			std::string size = next();
+			expect(";");
+		    if (!isNumber(size))
+        		throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
+    		loc.setClientMaxBodySize(toInt(size));
+		}
         else
 		{
 			std::cout << t << std::endl;

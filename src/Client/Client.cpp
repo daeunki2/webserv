@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 11:17:19 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 16:24:31 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -31,7 +31,6 @@ Client::Client()
 Client::Client(int fd, Server* server)
 : _fd(fd), _server(server),_parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false),last_active_time(time(NULL))
 {
-	_parser.set_max_body_size(server->getClientMaxBodySize());
 }
 
 Client::Client(const Client &o)
@@ -113,13 +112,13 @@ void Client::update_state(ClientState st)
 
 void Client::reset()
 {
-
     _parser.reset();
+
+    _error_code = 0;
     _response_buffer.clear();
-    _sent_bytes  = 0;
-    _error_code  = 0;
-    _keep_alive  = false;
-    _state       = RECVING_REQUEST;
+    _sent_bytes = 0;
+
+    _state = RECVING_REQUEST;
     last_active_time = time(NULL);
 }
 
@@ -136,18 +135,20 @@ Client::handle_recv_data(const char* data, size_t size)
 
     if (st == RequestParser::PARSING_ERROR)
     {
-        Logger::warn(Logger::TAG_REQ,"Parsing error on FD " + toString(_fd));
-        _error_code = _parser.get_error_code(); 
-        _state      = REQUEST_COMPLETE;
+        _error_code = _parser.get_error_code();
+        _state = Client::ERROR;
+        _keep_alive = false;
         return PARSING_COMPLETED;
     }
     else if (st == RequestParser::PARSING_COMPLETED)
     {
+        _state = Client::REQUEST_COMPLETE;
+        _keep_alive = _parser.getRequest().keep_alive();
         return PARSING_COMPLETED;
     }
-
     return PARSING_IN_PROGRESS;
 }
+
 
 /* ************************************************************************** */
 /*                          ResponseBuilder 연결                                */

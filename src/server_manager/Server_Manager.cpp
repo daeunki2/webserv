@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 16:33:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:51:30 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -395,10 +395,10 @@ void Server_Manager::run()
                 {
                     Client &client = it->second;
 
-                    if (client.get_state() == Client::REQUEST_COMPLETE)
+                    if (client.get_state() == Client::REQUEST_COMPLETE||client.get_state() == Client::ERROR)
                     {
-                        client.build_response();
-                        client.update_state(Client::SENDING_RESPONSE);
+						client.build_response();
+						client.update_state(Client::SENDING_RESPONSE);
                         update_poll_events(fd, POLLOUT);
                     }
                 }

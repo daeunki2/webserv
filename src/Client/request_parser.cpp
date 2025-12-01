@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 11:30:04 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:54:04 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,7 +48,7 @@ static bool parse_decimal_ll(const std::string& s, long long& out)
 // -----------------------------------------------------------
 
 RequestParser::RequestParser()
-: _state(REQUEST_LINE),_error_code(0), _buffer(),_request(),_content_to_read(0),_chunk_size(0),_is_chunked(false),  _max_body_size(0), _body_received(0)
+: _state(REQUEST_LINE),_error_code(0), _buffer(),_request(),_content_to_read(0),_chunk_size(0),_is_chunked(false),  _max_body_size(0), _body_received(0), _expect_continue(false),_max_body_configured(false)
 {
 	
 }
@@ -71,6 +71,8 @@ RequestParser& RequestParser::operator=(const RequestParser& o)
         _is_chunked      = o._is_chunked;
 		_body_received   = o._body_received;
         _max_body_size   = o._max_body_size;
+		_expect_continue = o._expect_continue;
+		_max_body_configured = o._max_body_configured;
     }
     return *this;
 }
@@ -87,6 +89,7 @@ void RequestParser::reset()
     _chunk_size = 0;
     _is_chunked = false;
 	_body_received = 0;
+	_expect_continue = false;
 }
 
 // -----------------------------------------------------------
@@ -246,46 +249,115 @@ RequestParser::parse_headers()
 
         if (line.empty())
         {
+
+            if (_expect_continue)
+            {
+                if (_request.has_content_length()
+                    && _max_body_size > 0
+                    && _request.get_content_length() > _max_body_size)
+                {
+                    _state = ERROR;
+                    _error_code = 413; // Payload Too Large
+                    return PARSING_ERROR;
+                }
+            }
             if (_is_chunked)
+            {
                 _state = CHUNK_SIZE;
+            }
             else if (_request.has_content_length())
-			{
-				long long cl = _request.get_content_length();
-				if (cl < 0)
-				{
-					_state = ERROR;
-					_error_code = 400;
-					return PARSING_ERROR;
-				}
-				if (_max_body_size > 0 && cl > _max_body_size)
-				{
-					_state = ERROR;
-					_error_code = 413;
-					return PARSING_ERROR;
-				}
-				_content_to_read = cl;
-				_state = BODY;
-			}
+            {
+                long long cl = _request.get_content_length();
+                if (cl < 0)
+                {
+                    _state = ERROR;
+                    _error_code = 400;
+                    return PARSING_ERROR;
+                }
+
+                if (_max_body_size > 0 && cl > _max_body_size)
+                {
+                    _state = ERROR;
+                    _error_code = 413;
+                    return PARSING_ERROR;
+                }
+
+                _content_to_read = cl;
+                _state = BODY;
+            }
             else
-			{
-				if (_request.get_method() == "POST")
-				{
-					_content_to_read = LLONG_MAX;
-					_state = BODY;
-				}
-				else
-				{
-					_state = COMPLETE;
-				}
-			}
+            {
+                if (_request.get_method() == "POST")
+                {
+                    _content_to_read = LLONG_MAX;
+                    _state = BODY;
+                }
+                else
+                {
+                    _state = COMPLETE;
+                }
+            }
             return PARSING_IN_PROGRESS;
         }
-
         parse_header_line(line);
         if (_state == ERROR)
             return PARSING_ERROR;
     }
 }
+
+
+
+// RequestParser::ParsingState
+// RequestParser::parse_headers()
+// {
+//     while (true)
+//     {
+//         std::string line;
+//         if (!extract_line(line))
+//             return PARSING_IN_PROGRESS;
+
+//         if (line.empty())
+//         {
+//             if (_is_chunked)
+//                 _state = CHUNK_SIZE;
+//             else if (_request.has_content_length())
+// 			{
+// 				long long cl = _request.get_content_length();
+// 				if (cl < 0)
+// 				{
+// 					_state = ERROR;
+// 					_error_code = 400;
+// 					return PARSING_ERROR;
+// 				}
+// 				if (_max_body_size > 0 && cl > _max_body_size)
+// 				{
+// 					_state = ERROR;
+// 					_error_code = 413;
+// 					return PARSING_ERROR;
+// 				}
+// 				_content_to_read = cl;
+// 				_state = BODY;
+// 			}
+//             else
+// 			{
+// 				if (_request.get_method() == "POST")
+// 				{
+// 					_content_to_read = LLONG_MAX;
+// 					_state = BODY;
+// 				}
+// 				else
+// 				{
+// 					_state = COMPLETE;
+// 				}
+// 			}
+//             return PARSING_IN_PROGRESS;
+//         }
+
+//         parse_header_line(line);
+//         if (_state == ERROR)
+//             return PARSING_ERROR;
+//     }
+// }
 
 // -----------------------------------------------------------
 // single header
@@ -351,6 +423,15 @@ void RequestParser::parse_header_line(const std::string& line)
         else if (lv == "close")
             _request.set_keep_alive(false);
     }
+	else if (lname == "expect")
+    {
+        std::string lv;
+        for (size_t i = 0; i < value.size(); ++i)
+            lv.push_back(std::tolower(value[i]));
+
+        if (lv == "100-continue")
+            _expect_continue = true;
+    }
 }
 
 // -----------------------------------------------------------
@@ -360,7 +441,6 @@ void RequestParser::parse_header_line(const std::string& line)
 RequestParser::ParsingState
 RequestParser::parse_body()
 {
-    // ✅ Content-Length 있는 경우: 기존 로직 그대로
     if (_content_to_read <= 0 && !_is_chunked)
     {
         _state = COMPLETE;
@@ -370,39 +450,46 @@ RequestParser::parse_body()
     if (_buffer.empty())
         return PARSING_IN_PROGRESS;
 
-    // ✅🔥 새로 추가: body size 누적 체크
-    _body_received += _buffer.size();
+    size_t to_copy;
+
+    if (_request.has_content_length())
+    {
+        to_copy = _buffer.size();
+        if (to_copy > static_cast<size_t>(_content_to_read))
+            to_copy = static_cast<size_t>(_content_to_read);
+    }
+    else
+    {
+        to_copy = _buffer.size();
+    }
 
     if (_max_body_size > 0 &&
-        _body_received > static_cast<size_t>(_max_body_size))
+        _body_received + to_copy > static_cast<size_t>(_max_body_size))
     {
-        _state = ERROR;
+        _state      = ERROR;
         _error_code = 413;
         return PARSING_ERROR;
     }
 
-    // ✅ 기존 로직
-    if (_buffer.size() < (size_t)_content_to_read)
+    _request.append_body(_buffer.substr(0, to_copy));
+    _body_received += to_copy;
+    _buffer.erase(0, to_copy);
+
+    if (_request.has_content_length())
     {
-        _request.append_body(_buffer);
-        _content_to_read -= _buffer.size();
-        _buffer.clear();
-        return PARSING_IN_PROGRESS;
+        _content_to_read -= static_cast<long long>(to_copy);
+        if (_content_to_read <= 0)
+            _state = COMPLETE;
     }
 
-    std::string chunk = _buffer.substr(0, (size_t)_content_to_read);
-    _request.append_body(chunk);
-    _buffer.erase(0, (size_t)_content_to_read);
-
-    _content_to_read = 0;
-    _state = COMPLETE;
     return PARSING_IN_PROGRESS;
 }
+
 
 // RequestParser::ParsingState
 // RequestParser::parse_body()
 // {
-//     if (_content_to_read <= 0)
+//     if (_content_to_read <= 0 && !_is_chunked)
 //     {
 //         _state = COMPLETE;
 //         return PARSING_IN_PROGRESS;
@@ -410,6 +497,16 @@ RequestParser::parse_body()
 
 //     if (_buffer.empty())
 //         return PARSING_IN_PROGRESS;
+
+//     _body_received += _buffer.size();
+
+//     if (_max_body_size > 0 &&
+//         _body_received > static_cast<size_t>(_max_body_size))
+//     {
+//         _state = ERROR;
+//         _error_code = 413;
+//         return PARSING_ERROR;
+//     }
 
 //     if (_buffer.size() < (size_t)_content_to_read)
 //     {
@@ -425,7 +522,6 @@ RequestParser::parse_body()
 
 //     _content_to_read = 0;
 //     _state = COMPLETE;
-// //	Logger::info(Logger::TAG_REQ, "HTTP request parsed: "+ _request.get_method()+ " " + _request.get_uri());
 //     return PARSING_IN_PROGRESS;
 // }
 
@@ -482,19 +578,29 @@ RequestParser::parse_chunk_size()
 // chunk-data
 // -----------------------------------------------------------
 
+
 RequestParser::ParsingState
 RequestParser::parse_chunk_data()
 {
     if (_buffer.size() < (size_t)(_chunk_size + 2))
         return PARSING_IN_PROGRESS;
 
+    if (_max_body_size > 0 &&
+        _body_received + static_cast<size_t>(_chunk_size) > static_cast<size_t>(_max_body_size))
+    {
+        _state      = ERROR;
+        _error_code = 413;
+        return PARSING_ERROR;
+    }
+
     std::string data = _buffer.substr(0, (size_t)_chunk_size);
     _request.append_body(data);
+    _body_received += static_cast<size_t>(_chunk_size);
 
     if (_buffer[_chunk_size] != '\r' || _buffer[_chunk_size + 1] != '\n')
     {
         _state = ERROR;
-		_error_code = 400;
+        _error_code = 400;
         return PARSING_ERROR;
     }
 
@@ -505,6 +611,30 @@ RequestParser::parse_chunk_data()
     return PARSING_IN_PROGRESS;
 }
 
+
+// RequestParser::ParsingState
+// RequestParser::parse_chunk_data()
+// {
+//     if (_buffer.size() < (size_t)(_chunk_size + 2))
+//         return PARSING_IN_PROGRESS;
+
+//     std::string data = _buffer.substr(0, (size_t)_chunk_size);
+//     _request.append_body(data);
+
+//     if (_buffer[_chunk_size] != '\r' || _buffer[_chunk_size + 1] != '\n')
+//     {
+//         _state = ERROR;
+// 		_error_code = 400;
+//         return PARSING_ERROR;
+//     }
+
+//     _buffer.erase(0, (size_t)(_chunk_size + 2));
+//     _chunk_size = 0;
+
+//     _state = CHUNK_SIZE;
+//     return PARSING_IN_PROGRESS;
+// }
+
 // -----------------------------------------------------------
 // getRequest
 // -----------------------------------------------------------
@@ -514,8 +644,13 @@ const http_request& RequestParser::getRequest() const
     return _request;
 }
 
-
 void RequestParser::set_max_body_size(long long max)
 {
     _max_body_size = max;
+    _max_body_configured = true;
+}
+
+bool RequestParser::isMaxBodyConfigured() const
+{
+    return _max_body_configured;
 }

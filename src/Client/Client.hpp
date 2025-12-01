@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/05 12:28:23 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/26 12:34:31 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/01 14:51:00 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,6 +15,7 @@
 
 #include <string>
 #include <ctime>        // time_t
+#include <sys/socket.h>
 
 #include "../config_parser/Server.hpp"
 #include "http_request.hpp"
@@ -31,7 +32,8 @@ public:
         REQUEST_COMPLETE,    // 하나의 요청이 완전히 파싱됨
         SENDING_RESPONSE,    // 응답을 보내는 중 (send)
         CONNECTION_CLOSE,    // 연결 종료 예정 / 종료
-        ERROR_STATE          // 에러가 발생한 상태 (에러 응답 생성용)
+        ERROR_STATE,          // 에러가 발생한 상태 (에러 응답 생성용)
+		ERROR
     };
 
     // Server_Manager에서 보기 편하도록 파서 결과를 래핑

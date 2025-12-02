@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/01 18:37:46 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 16:45:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 17:52:04 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -48,24 +48,40 @@ void Response_Builder::freeEnv(char **envp) const
 
 std::string Response_Builder::handleCgi(const Location* loc)
 {
-	/*
-	fork 
-	pipe
-	child
-		execv(char ** path)
-		{
-			free()
-		}
-	father
+	int		pipe_fd[2];
+	pid_t 	p_id;
+	char	**env = buildCgiEnv();
+
+	if(pipe(pipe_fd) < 0)
 	{
-		send a response
+		freeEnv(env);
+		throw Error("Cannot make pipefd");
 	}
-	*/
+	p_id = fork();
+	if(p_id == -1)
+	{
+		()
+		freeEnv(env);
+		throw Error("Cannot make pipefd");
+	}
+	if(p_id == 0)
+	{
+		
+	}
+	else
+	{
+		
+	}
+
 }
 
 std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOutput)
 {
 	/*
 		write in "HTTP" msg.
+		HTTP/1.1 200 OK
+	Content-Length: xxx
+	Content-Type: text/html
+	Connection: close
 	*/
 }

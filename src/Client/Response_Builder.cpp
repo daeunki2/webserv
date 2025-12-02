@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 15:14:00 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 20:47:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -477,6 +477,7 @@ std::string Response_Builder::build()
 
     Logger::info(Logger::TAG_REQ, "FD " + toString(_client->get_fd()) + " build response for " + method + " " + path);
     
+	//error from parse
 	if (_client->get_error_code() != 0)
     {
         int code = _client->get_error_code();
@@ -487,9 +488,10 @@ std::string Response_Builder::build()
 
         return buildErrorResponse(code, statusMessage(code));
     }
-
+	//get location 
     const Location *loc = matchLocation(path);
 
+	//valid method
     if (!isMethodAllowed(loc))
 	{
 		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " method not allowed: " + method);
@@ -498,12 +500,22 @@ std::string Response_Builder::build()
         return buildErrorResponse(405, "Method Not Allowed");
 	}
 
-	
+	//redirect
     if (loc && loc->isRedirect())
     {
         return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
     }
 
+	//cgi
+	// if (isCgiRequest(loc, path) == true)
+	// {
+	// 	if (access(loc->getCgiPath().c_str(), F_OK) != 0)
+	// 		return buildErrorResponse(404, "Not Found");
+	// 	if (access(loc->getCgiPath().c_str(), X_OK) != 0)
+	// 		return buildErrorResponse(403, "Forbidden");
+	// 	return handleCgi(loc);
+	// }
+	
     if (method == "HEAD")
     {
         std::string res = handleGet(loc);
@@ -513,8 +525,6 @@ std::string Response_Builder::build()
         return res;
     }
 	
-//	if (isCgiRequest(loc, path) == true)
-//		return handleCgi(loc);
 		
     if (method == "GET")
         return handleGet(loc);

@@ -329,17 +329,19 @@ function sendCGI() {
 function runBaguetteCGI() {
     const v = document.getElementById("baguette-input").value;
 
-    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}`, 
-          { method: "GET" })
-        .then(res => res.text().then(t => {
+    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}`)
+        .then(res => res.text())
+        .then(t => {
+            const count = t.trim();
+
             document.getElementById("response-display").innerHTML = `
                 <div style="display:flex; justify-content:flex-end;">
                     <button class="close-btn" onclick="clearUI()">✖</button>
                 </div>
                 <h3>CGI RESULT</h3>
-                ${t}
+                당신의 <b>${v}유로</b>로  <b>${count}개</b>의 바게트를 구매할 수 있습니다 🥖
             `;
-        }));
+        });
 }
 
 </script>

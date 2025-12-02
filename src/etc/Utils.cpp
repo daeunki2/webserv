@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/29 17:41:47 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 16:38:44 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 20:21:18 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -53,20 +53,21 @@ std::vector<std::string> split(const std::string &s)
 
 char *ft_strdup(const char *str)
 {
+    if (!str)
+        return NULL;
+
     int len = 0;
     while (str[len] != '\0')
-        len++;
+        ++len;
 
-    char *dup = (char*)malloc(sizeof(char) * (len + 1));
-    if (!dup)
-        return NULL;
-		
-    for (int i = 0; i < len; i++)
+    char *dup = new char[len + 1];
+    for (int i = 0; i < len; ++i)
         dup[i] = str[i];
 
     dup[len] = '\0';
     return dup;
 }
+
 
 
 

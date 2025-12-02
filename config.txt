@@ -27,6 +27,7 @@ server {
         allowed_methods GET POST;
         cgi .bla ./cgi_test;
     }
+	
 }
 
 
@@ -52,6 +53,13 @@ server {
         autoindex off;
         allowed_methods GET POST;
         cgi .bla ./cgi-bin/baguette.py;
+    }
+	location /cgi-bin/ {
+        root .;
+        allowed_methods POST GET;
+
+        # python 파일은 CGI로 처리
+        cgi .py /usr/bin/python3;
     }
 }
 

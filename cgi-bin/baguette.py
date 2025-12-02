@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 
-import sys
+import os
+import urllib.parse
 
-data = sys.stdin.read().strip()
+# CGI 헤더 (필수)
+print("Content-Type: text/plain")
+print()
+
+query = os.environ.get("QUERY_STRING", "")
+params = urllib.parse.parse_qs(query)
 
 try:
-    euros = float(data)
-    baguettes = int(euros / 0.1)
-    print(f"{euros} euros can buy {baguettes} baguettes")
+    euros = float(params.get("euro", [""])[0])
+    baguettes = int(euros / 0.3)
+    print(baguettes)     # ✅ 값만 출력
 except:
-    print("Invalid input")
+    print("0")

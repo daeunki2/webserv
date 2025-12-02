@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 16:26:25 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 20:48:21 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,6 +17,7 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <unistd.h>
 #include <vector>
 #include <sys/stat.h>
 #include "Server.hpp"
@@ -58,16 +59,16 @@ private:
 	std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
 	/*CGI*/
 	bool		isCgiRequest(const Location* loc, const std::string& path) const;
-	char**		buildCgiEnv() const;
+	char**		buildCgiEnv(const Location* loc) const;
 	std::string handleCgi(const Location* loc);
 	std::string buildHttpResponseFromCgi(const std::string& cgiOutput);
-	void		freeEnv() const
+	void		freeEnv(char **env) const;
 
 	public:
     Response_Builder(Server* server, const http_request& req, Client* client);
     ~Response_Builder();
 
-    std::string build();  // 최종 응답 생성
+    std::string build();
 };
 
 #endif

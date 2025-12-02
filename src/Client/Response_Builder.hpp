@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 15:27:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 16:26:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 #include "Server.hpp"
 #include "Location.hpp"
+#include "Utils.hpp"
 #include "http_request.hpp"
 #include "Client.hpp"
 

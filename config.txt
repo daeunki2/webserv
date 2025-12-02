@@ -58,7 +58,7 @@ server {
 
 
 server {
-    listen 8282;
+    listen 8383;
     server_name sausage;
 
     root ./www/test3;

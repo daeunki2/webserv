@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 20:16:38 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 14:59:48 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -245,13 +245,13 @@ RequestParser::parse_request_line()
 RequestParser::ParsingState
 RequestParser::parse_headers()
 {
+	std::string line;
     while (true)
     {
-        std::string line;
         if (!extract_line(line))
             return PARSING_IN_PROGRESS;
         if (line.empty())
-        {}
+        {
             if (_expect_continue)
             {
                 if (_request.has_content_length()

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 18:53:11 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/02 15:14:00 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -513,12 +513,14 @@ std::string Response_Builder::build()
         return res;
     }
 	
+//	if (isCgiRequest(loc, path) == true)
+//		return handleCgi(loc);
+		
     if (method == "GET")
         return handleGet(loc);
 
     if (method == "POST")
 	{
-		// //normal
 		return handlePost(loc, path);
 	}	
 

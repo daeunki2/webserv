@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/01 18:37:46 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/03 11:38:39 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 17:22:59 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,26 +33,45 @@ bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path
 
 char **Response_Builder::buildCgiEnv(const std::string& script_path) const
 {
-    const int ENV_SIZE = 9;
+    const int ENV_SIZE = 10;
     char **env = new char*[ENV_SIZE];
     if (!env)
         return NULL;
 
-    env[0] = ft_strdup(("REQUEST_METHOD=" + _req.get_method()).c_str());
-    env[1] = ft_strdup(("QUERY_STRING=" + _req.get_query()).c_str());
-    env[2] = ft_strdup(("CONTENT_TYPE=" + _req.get_header("content-type")).c_str());
+    int i = 0;
 
-	std::string body = _req.get_body();
-	size_t body_len = body.size();
-	env[3] = ft_strdup(("CONTENT_LENGTH=" + toString(body_len)).c_str());
-	env[4] = ft_strdup(("SCRIPT_FILENAME=" + script_path).c_str());
-    env[5] = ft_strdup("SERVER_PROTOCOL=HTTP/1.1");
-    env[6] = ft_strdup("GATEWAY_INTERFACE=CGI/1.1");
-    env[7] = ft_strdup("REDIRECT_STATUS=200");
-    env[8] = NULL;
+    env[i++] = ft_strdup(std::string("REQUEST_METHOD=" + _req.get_method()).c_str());
 
+    env[i++] = ft_strdup(std::string("QUERY_STRING=" + _req.get_query()).c_str());
+
+    if (_req.get_method() == "POST")
+    {
+        env[i++] = ft_strdup(std::string("CONTENT_TYPE=" +_req.get_header("content-type")).c_str());
+    }
+
+    if (_req.get_method() == "POST" && _req.has_content_length())
+    {
+        env[i++] = ft_strdup(std::string("CONTENT_LENGTH=" +toString(_req.get_content_length())).c_str());
+    }
+
+    env[i++] = ft_strdup(
+        std::string("SCRIPT_FILENAME=" + script_path).c_str());
+
+    env[i++] = ft_strdup("PATH_INFO=");
+
+    env[i++] = ft_strdup(
+        std::string("SCRIPT_NAME=" + _req.get_path()).c_str());
+
+    env[i++] = ft_strdup("SERVER_PROTOCOL=HTTP/1.1");
+    env[i++] = ft_strdup("GATEWAY_INTERFACE=CGI/1.1");
+    env[i++] = ft_strdup("REDIRECT_STATUS=200");
+
+    env[i] = NULL;
     return env;
 }
+
+
+
 
 
 void Response_Builder::freeEnv(char **envp) const
@@ -190,4 +209,86 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
     return response.str();
 }
 
+/*
+std::string Response_Builder::buildHttpResponseFromCgi(
+    const std::string& cgiOutput)
+{
+    std::ostringstream response;
 
+
+    std::string headers;
+    std::string body;
+
+    size_t header_end = cgiOutput.find("\r\n\r\n");
+    size_t header_len = 4;
+
+    if (header_end == std::string::npos)
+    {
+        header_end = cgiOutput.find("\n\n");
+        header_len = 2;
+    }
+
+    if (header_end != std::string::npos)
+    {
+        headers = cgiOutput.substr(0, header_end);
+        body    = cgiOutput.substr(header_end + header_len);
+    }
+    else
+    {
+        body = cgiOutput;
+    }
+
+    while (!body.empty() && (body[0] == '\n' || body[0] == '\r'))
+        body.erase(0, 1);
+
+
+    std::string status_code = "200 OK";
+    std::ostringstream forwarded_headers;
+
+    std::istringstream header_stream(headers);
+    std::string line;
+
+    while (std::getline(header_stream, line))
+    {
+        if (!line.empty() && line.back() == '\r')
+            line.erase(line.size() - 1);
+
+        if (line.find("Status:") == 0)
+        {
+            status_code = line.substr(7); // " xyz ..."
+            while (!status_code.empty() && status_code[0] == ' ')
+                status_code.erase(0, 1);
+        }
+        else if (!line.empty())
+        {
+            forwarded_headers << line << "\r\n";
+        }
+    }
+
+    int code = 200;
+    std::istringstream(status_code) >> code;
+
+    bool no_content = (code == 204 || code == 304);
+
+
+    response << "HTTP/1.1 " << status_code << "\r\n";
+    response << forwarded_headers.str();
+
+    if (!no_content)
+    {
+        if (forwarded_headers.str().find("Content-Type") == std::string::npos)
+            response << "Content-Type: text/plain\r\n";
+
+        response << "Content-Length: " << body.size() << "\r\n";
+    }
+
+    response << "Connection: "
+            << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n";
+    response << "\r\n";
+
+    if (!no_content)
+        response << body;
+
+    return response.str();
+}
+*/

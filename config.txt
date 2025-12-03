@@ -2,8 +2,7 @@ server {
     listen 8080;
     server_name tester;
 
-    # ✅ tester 통과용: 전역 body 제한
-    client_max_body_size 100;
+    client_max_body_size 200000000;
 
     location / {
         root ./www/test1;
@@ -13,7 +12,7 @@ server {
 
     location /post_body {
         allowed_methods POST;
-        # 있어도 되고 없어도 됨 (전역이 이미 있음)
+        # 전역 client_max_body_size 사용
     }
 
     location /directory {
@@ -24,12 +23,16 @@ server {
     location /directory/ {
         root ./YoupiBanane;
         index youpi.bad_extension;
+
         autoindex off;
         allowed_methods GET POST;
 
+        # .bla 확장자를 CGI로 처리
+        # 실제 실행 파일은 cgi_test
         cgi .bla ./cgi_test;
     }
 }
+
 
 
 
@@ -42,6 +45,12 @@ server {
     location / {
         index index_b.html;
         allowed_methods GET;
+    }
+
+	location /upload {
+        root ./www/test1/upload;
+        autoindex on;
+        upload ./www/test1/upload;
     }
 
     location /cgi-bin/ {

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 20:47:25 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 11:40:17 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -469,6 +469,10 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
 /*                                  build()                                   */
 /* ************************************************************************** */
 
+
+
+
+
 std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
@@ -476,7 +480,7 @@ std::string Response_Builder::build()
 
 
     Logger::info(Logger::TAG_REQ, "FD " + toString(_client->get_fd()) + " build response for " + method + " " + path);
-    
+
 	//error from parse
 	if (_client->get_error_code() != 0)
     {
@@ -506,16 +510,38 @@ std::string Response_Builder::build()
         return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
     }
 
-	//cgi
-	// if (isCgiRequest(loc, path) == true)
-	// {
-	// 	if (access(loc->getCgiPath().c_str(), F_OK) != 0)
-	// 		return buildErrorResponse(404, "Not Found");
-	// 	if (access(loc->getCgiPath().c_str(), X_OK) != 0)
-	// 		return buildErrorResponse(403, "Forbidden");
-	// 	return handleCgi(loc);
-	// }
+    if (method == "POST" && loc->hasClientMaxBodySize() && static_cast<size_t>(_req.get_content_length()) > loc->getClientMaxBodySize())
+    {
+        return buildErrorResponse(413, "Payload Too Large");
+    }
+
+    if (isCgiRequest(loc, path))
+    {
+		    if (!isMethodAllowed(loc))
+        return buildErrorResponse(405, "Method Not Allowed");
+
+    // ✅ 2) POST 바디 크기 검사 (여기서 바로 끊기)
+    if (method == "POST" && loc->hasClientMaxBodySize() &&
+        static_cast<size_t>(_req.get_content_length()) > loc->getClientMaxBodySize())
+    {
+        return buildErrorResponse(413, "Payload Too Large");
+    }
 	
+        std::string script_path = loc->getRoot() + "/" + path.substr(loc->getPath().length());
+	// Logger::info(Logger::TAG_CGI, "CGI loc.path=[" + loc->getPath() + "] root=[" + loc->getRoot() + "] req=[" + path + "] script=[" + script_path + "]");
+
+        Logger::info(Logger::TAG_CGI, "CGI script_path = [" + script_path + "]");
+
+        if (access(script_path.c_str(), F_OK) != 0)
+            return buildErrorResponse(404, "Not Found");
+
+        if (access(script_path.c_str(), R_OK) != 0)
+            return buildErrorResponse(403, "Forbidden");
+
+        return handleCgi(loc, script_path);
+    }
+
+
     if (method == "HEAD")
     {
         std::string res = handleGet(loc);
@@ -529,7 +555,7 @@ std::string Response_Builder::build()
     if (method == "GET")
         return handleGet(loc);
 
-    if (method == "POST")
+    if (method == "POST" && !isCgiRequest(loc, path))
 	{
 		return handlePost(loc, path);
 	}	

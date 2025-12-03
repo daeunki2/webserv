@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/24 10:03:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:42:58 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 10:48:39 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -33,6 +33,9 @@ int main(int argc, char **argv)
     {
 		signal(SIGINT, signal_handler);
 		signal(SIGTERM, signal_handler);
+
+		signal(SIGPIPE, SIG_IGN);
+
         std::string configFile = argv[1];
 
         ConfigParser parser(configFile);

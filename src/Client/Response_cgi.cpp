@@ -6,13 +6,15 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/01 18:37:46 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 20:48:35 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 11:38:39 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Response_Builder.hpp"
 #include <unistd.h>
 #include <sys/wait.h>
+
+
 
 bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path) const
 {
@@ -29,7 +31,7 @@ bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path
 }
 
 
-char **Response_Builder::buildCgiEnv(const Location* loc) const
+char **Response_Builder::buildCgiEnv(const std::string& script_path) const
 {
     const int ENV_SIZE = 9;
     char **env = new char*[ENV_SIZE];
@@ -40,12 +42,10 @@ char **Response_Builder::buildCgiEnv(const Location* loc) const
     env[1] = ft_strdup(("QUERY_STRING=" + _req.get_query()).c_str());
     env[2] = ft_strdup(("CONTENT_TYPE=" + _req.get_header("content-type")).c_str());
 
-    if (_req.get_method() == "POST")
-        env[3] = ft_strdup(("CONTENT_LENGTH=" + toString(_req.get_content_length())).c_str());
-    else
-        env[3] = ft_strdup("CONTENT_LENGTH=0");
-
-    env[4] = ft_strdup(("SCRIPT_FILENAME=" + loc->getCgiPath()).c_str());
+	std::string body = _req.get_body();
+	size_t body_len = body.size();
+	env[3] = ft_strdup(("CONTENT_LENGTH=" + toString(body_len)).c_str());
+	env[4] = ft_strdup(("SCRIPT_FILENAME=" + script_path).c_str());
     env[5] = ft_strdup("SERVER_PROTOCOL=HTTP/1.1");
     env[6] = ft_strdup("GATEWAY_INTERFACE=CGI/1.1");
     env[7] = ft_strdup("REDIRECT_STATUS=200");
@@ -66,7 +66,7 @@ void Response_Builder::freeEnv(char **envp) const
     delete [] envp;
 }
 
-std::string Response_Builder::handleCgi(const Location* loc)
+std::string Response_Builder::handleCgi(const Location* loc, const std::string& script_path)
 {
     int in_pipe[2];
     int out_pipe[2];
@@ -88,29 +88,47 @@ std::string Response_Builder::handleCgi(const Location* loc)
         close(in_pipe[0]);
         close(out_pipe[1]);
 
-        char *argv[2];
-        argv[0] = const_cast<char*>(loc->getCgiPath().c_str());
-        argv[1] = NULL;
+		char *argv[3];
+		argv[0] = const_cast<char*>(loc->getCgiPath().c_str()); // /usr/bin/python3
+		argv[1] = const_cast<char*>(script_path.c_str());       // ./cgi-bin/baguette.py
+		argv[2] = NULL;
 
-        char **envp = buildCgiEnv(loc);
+        char **envp = buildCgiEnv( script_path);
         if (!envp)
         {
             kill(getpid(), SIGTERM);
+			return "";
         }
-
         execve(argv[0], argv, envp);
 
         freeEnv(envp);
-
         kill(getpid(), SIGTERM);
+		return "";
     }
 
     close(in_pipe[0]);
     close(out_pipe[1]);
 
-    const std::string &body = _req.get_body();
-    if (!body.empty())
-        write(in_pipe[1], body.c_str(), body.size());
+
+	const std::string &body = _req.get_body();
+if (_req.get_method() == "POST" && !body.empty())
+{
+    const char *data = body.c_str();
+    size_t      len  = body.size();
+    size_t      sent = 0;
+
+    while (sent < len)
+    {
+        ssize_t written = write(in_pipe[1], data + sent, len - sent);
+        if (written < 0)
+        {
+            close(in_pipe[1]);
+            close(out_pipe[0]);
+            return buildErrorResponse(500, "CGI write failed");
+        }
+        sent += static_cast<size_t>(written);
+    }
+}
 
     close(in_pipe[1]);
 
@@ -136,26 +154,40 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
     std::string headers;
 
     size_t header_end = cgiOutput.find("\r\n\r\n");
+    size_t header_len = 4;
+
+    if (header_end == std::string::npos)
+    {
+        header_end = cgiOutput.find("\n\n");
+        header_len = 2;
+    }
+
     if (header_end != std::string::npos)
     {
         headers = cgiOutput.substr(0, header_end);
-        body    = cgiOutput.substr(header_end + 4);
+        body    = cgiOutput.substr(header_end + header_len);
     }
     else
     {
         body = cgiOutput;
     }
 
+    while (!body.empty() && (body[0] == '\n' || body[0] == '\r'))
+        body.erase(0, 1);
+
     response << "HTTP/1.1 200 OK\r\n";
-    if (headers.find("Content-Type:") == std::string::npos)
-        response << "Content-Type: text/html\r\n";
-    response << "Content-Length: " << body.size() << "\r\n";
-    response << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n";
 
     if (!headers.empty())
-		response << headers << "\r\n";
+        response << headers << "\r\n";
+    else
+        response << "Content-Type: text/plain\r\n";
+
+    response << "Content-Length: " << body.size() << "\r\n";
+    response << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n";
     response << "\r\n";
     response << body;
+
     return response.str();
 }
+
 

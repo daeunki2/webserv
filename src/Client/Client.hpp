@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/05 12:28:23 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 20:16:03 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 10:35:15 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -84,6 +84,8 @@ class Client
 
 	// more like send 
 	void                build_response();
+	//cgi
+
 };
 
 #endif

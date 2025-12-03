@@ -12,7 +12,7 @@ params = urllib.parse.parse_qs(query)
 
 try:
     euros = float(params.get("euro", [""])[0])
-    baguettes = int(euros / 0.3)
-    print(baguettes)     # ✅ 값만 출력
+    baguettes = int(euros / 0.5)
+    print(baguettes)
 except:
     print("0")

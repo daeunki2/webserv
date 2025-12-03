@@ -2,6 +2,60 @@ server {
     listen 8080;
     server_name tester;
 
+    # ✅ tester 통과용: 전역 body 제한
+    client_max_body_size 100;
+
+    location / {
+        root ./www/test1;
+        index index_b.html;
+        allowed_methods GET;
+    }
+
+    location /post_body {
+        allowed_methods POST;
+        # 있어도 되고 없어도 됨 (전역이 이미 있음)
+    }
+
+    location /directory {
+        allowed_methods GET;
+        return 301 /directory/;
+    }
+
+    location /directory/ {
+        root ./YoupiBanane;
+        index youpi.bad_extension;
+        autoindex off;
+        allowed_methods GET POST;
+
+        cgi .bla ./cgi_test;
+    }
+}
+
+
+
+server {
+    listen 8081;
+    server_name dev;
+
+    root ./www/test1;
+
+    location / {
+        index index_b.html;
+        allowed_methods GET;
+    }
+
+    location /cgi-bin/ {
+        root ./cgi-bin;
+        allowed_methods GET POST;
+        cgi .py /usr/bin/python3;
+    }
+}
+
+
+server {
+    listen 8484;
+    server_name tester;
+
     root ./www/test1;
 
     location / {

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 20:48:21 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 09:49:31 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,8 +59,8 @@ private:
 	std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
 	/*CGI*/
 	bool		isCgiRequest(const Location* loc, const std::string& path) const;
-	char**		buildCgiEnv(const Location* loc) const;
-	std::string handleCgi(const Location* loc);
+	char**		buildCgiEnv( const std::string& script_path) const;
+	std::string handleCgi(const Location* loc, const std::string& script_path);
 	std::string buildHttpResponseFromCgi(const std::string& cgiOutput);
 	void		freeEnv(char **env) const;
 

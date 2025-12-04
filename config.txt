@@ -1,31 +1,36 @@
-server {
-    listen 8080;
-    server_name tester;
+server
+{
+	listen 8080;
+	server_name tester;
 
-    location / {
-        root ./www/test1;
-        index index_b.html;
-        allowed_methods GET;
-    }
+	location /
+	{
+		root ./www/test1;
+		index index_b.html;
+		allowed_methods GET;
+	}
 
-    location /post_body {
-        allowed_methods POST;
-        client_max_body_size 100;
-    }
+	location /post_body
+	{
+		allowed_methods POST;
+		client_max_body_size 100;
+	}
 
-    location /directory {
-        allowed_methods GET;
-        return 301 /directory/;
-    }
+	location /directory
+	{
+		allowed_methods GET;
+		return 301 /directory/;
+	}
 
-    location /directory/ {
-        root ./YoupiBanane;
-        index youpi.bad_extension;
-        autoindex off;
-        allowed_methods GET POST;
-
-        cgi .bla ./cgi_test;
-    }
+	location /directory/
+	{
+		root ./YoupiBanane;
+		index youpi.bad_extension;
+		autoindex off;
+		allowed_methods GET POST;
+		client_max_body_size 100000;
+		cgi .bla ./cgi_test;
+	}
 }
 
 
@@ -42,7 +47,7 @@ server {
         allowed_methods GET;
     }
 
-	location /upload {
+    location /upload {
         root ./www/test1/upload;
         autoindex on;
         upload ./www/test1/upload;
@@ -53,8 +58,8 @@ server {
         allowed_methods GET POST;
         cgi .py /usr/bin/python3;
     }
-}
 
+}
 
 server {
     listen 8484;

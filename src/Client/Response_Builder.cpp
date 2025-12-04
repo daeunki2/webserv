@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/03 11:40:17 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/04 13:02:16 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -469,78 +469,88 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
 /*                                  build()                                   */
 /* ************************************************************************** */
 
-
-
-
-
 std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
 
+    Logger::info(Logger::TAG_REQ,
+        "FD " + toString(_client->get_fd()) +
+        " build response for " + method + " " + path);
 
-    Logger::info(Logger::TAG_REQ, "FD " + toString(_client->get_fd()) + " build response for " + method + " " + path);
-
-	//error from parse
-	if (_client->get_error_code() != 0)
+    if (_client->get_error_code() != 0)
     {
         int code = _client->get_error_code();
-		
-		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " responding to parse error");
-        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd())+ " response decided: "+ toString(code) + " " + statusMessage(code)
-        );
-
+        Logger::warn(Logger::TAG_EVENT,
+            "FD " + toString(_client->get_fd()) + " responding to parse error");
+        Logger::info(Logger::TAG_EVENT,
+            "FD " + toString(_client->get_fd()) + " response decided: " + toString(code) + " " + statusMessage(code));
         return buildErrorResponse(code, statusMessage(code));
     }
-	//get location 
+
     const Location *loc = matchLocation(path);
+    if (loc)
+        Logger::info(Logger::TAG_REQ,
+            "Matched location: " + loc->getPath());
+    else
+        Logger::info(Logger::TAG_REQ,
+            "Matched location: <none>");
 
-	//valid method
     if (!isMethodAllowed(loc))
-	{
-		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " method not allowed: " + method);
-
-        Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
+    {
+        Logger::warn(Logger::TAG_EVENT,
+            "FD " + toString(_client->get_fd()) + " method not allowed: " + method);
+        Logger::info(Logger::TAG_EVENT,
+            "FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
         return buildErrorResponse(405, "Method Not Allowed");
-	}
+    }
 
-	//redirect
     if (loc && loc->isRedirect())
     {
-        return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
+        Logger::info(Logger::TAG_EVENT,
+            "FD " + toString(_client->get_fd()) +
+            " redirect " + toString(loc->getRedirectCode()) +
+            " -> " + loc->getRedirectUrl());
+        return buildRedirectResponse(
+            loc->getRedirectCode(),
+            loc->getRedirectUrl());
     }
 
-    if (method == "POST" && loc->hasClientMaxBodySize() && static_cast<size_t>(_req.get_content_length()) > loc->getClientMaxBodySize())
+    if (method == "POST" && loc && loc->hasClientMaxBodySize())
     {
-        return buildErrorResponse(413, "Payload Too Large");
+        size_t limit    = loc->getClientMaxBodySize();
+        size_t body_len = _req.get_body().size();
+
+        if (body_len > limit)
+        {
+            Logger::warn(Logger::TAG_EVENT,
+                "FD " + toString(_client->get_fd()) +
+                " request entity too large (body=" +
+                toString(body_len) + ", limit=" +
+                toString(limit) + ")");
+            Logger::info(Logger::TAG_EVENT,
+                "FD " + toString(_client->get_fd()) +
+                " response decided: 413 Payload Too Large");
+            return buildErrorResponse(413, "Payload Too Large");
+        }
     }
 
-    if (isCgiRequest(loc, path))
+    if ((method == "GET" || method == "POST") && isCgiRequest(loc, path))
     {
-		    if (!isMethodAllowed(loc))
-        return buildErrorResponse(405, "Method Not Allowed");
-
-    // ✅ 2) POST 바디 크기 검사 (여기서 바로 끊기)
-    if (method == "POST" && loc->hasClientMaxBodySize() &&
-        static_cast<size_t>(_req.get_content_length()) > loc->getClientMaxBodySize())
-    {
-        return buildErrorResponse(413, "Payload Too Large");
-    }
-	
-        std::string script_path = loc->getRoot() + "/" + path.substr(loc->getPath().length());
-	// Logger::info(Logger::TAG_CGI, "CGI loc.path=[" + loc->getPath() + "] root=[" + loc->getRoot() + "] req=[" + path + "] script=[" + script_path + "]");
-
-        Logger::info(Logger::TAG_CGI, "CGI script_path = [" + script_path + "]");
-
-        if (access(script_path.c_str(), F_OK) != 0)
-            return buildErrorResponse(404, "Not Found");
-
-        if (access(script_path.c_str(), R_OK) != 0)
-            return buildErrorResponse(403, "Forbidden");
-
+        std::string script_relative = path.substr(loc->getPath().length());
+        std::string script_path = loc->getRoot();
+        
+        if (script_path.empty() || script_path[script_path.length() - 1] != '/')
+        {
+            script_path += "/";
+        }
+        if (!script_relative.empty() && script_relative[0] == '/')
+        {
+            script_relative.erase(0, 1);
+        }
+        script_path += script_relative;
         return handleCgi(loc, script_path);
     }
-
 
     if (method == "HEAD")
     {
@@ -550,15 +560,12 @@ std::string Response_Builder::build()
             res.erase(pos + 4);
         return res;
     }
-	
-		
+
     if (method == "GET")
         return handleGet(loc);
 
-    if (method == "POST" && !isCgiRequest(loc, path))
-	{
-		return handlePost(loc, path);
-	}	
+    if (method == "POST")
+        return handlePost(loc, path);
 
     if (method == "DELETE")
         return handleDelete(loc, path);

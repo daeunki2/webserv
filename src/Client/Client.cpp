@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/03 10:37:41 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/04 12:34:57 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -168,3 +168,7 @@ void Client::build_response()
     _sent_bytes      = 0;
     _state           = SENDING_RESPONSE;
 }
+
+
+
+

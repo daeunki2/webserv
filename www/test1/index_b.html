@@ -198,6 +198,9 @@ const translations = {
 };
 
 function changeLang(lang) {
+    // Set language in localStorage
+    localStorage.setItem("lang", lang);
+
     const t = translations[lang];
     document.getElementById("title").innerText = t.title;
     document.getElementById("subtitle").innerText = t.subtitle;
@@ -211,7 +214,6 @@ function changeLang(lang) {
     if (postLabel) postLabel.innerText = t.postLabel;
     if (baguette) baguette.innerText = t.baguetteLabel;
 }
-
 
 
 /* ---------------- GET IMAGE ---------------- */
@@ -328,18 +330,30 @@ function sendCGI() {
 
 function runBaguetteCGI() {
     const v = document.getElementById("baguette-input").value;
+    
+    // Get language from localStorage
+    const lang = localStorage.getItem("lang") || "fr"; // Default to French if not set
 
     fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}`)
         .then(res => res.text())
         .then(t => {
             const count = t.trim();
 
+            let resultText;
+            if (lang === "fr") {
+                resultText = `Vous pouvez acheter <b>${count} baguettes</b> avec <b>${v} euros</b> 🥖`;
+            } else if (lang === "en") {
+                resultText = `You can buy <b>${count} baguettes</b> with <b>${v} euros</b> 🥖`;
+            } else {
+                resultText = `당신의 <b>${v}유로</b>로  <b>${count}개</b>의 바게트를 구매할 수 있습니다 🥖`;
+            }
+
             document.getElementById("response-display").innerHTML = `
                 <div style="display:flex; justify-content:flex-end;">
                     <button class="close-btn" onclick="clearUI()">✖</button>
                 </div>
                 <h3>CGI RESULT</h3>
-                당신의 <b>${v}유로</b>로  <b>${count}개</b>의 바게트를 구매할 수 있습니다 🥖
+                ${resultText}
             `;
         });
 }

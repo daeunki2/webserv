@@ -13,7 +13,7 @@ server
 	location /post_body
 	{
 		allowed_methods POST;
-		client_max_body_size 100;
+		client_max_body_size 1024;
 	}
 
 	location /directory
@@ -28,7 +28,7 @@ server
 		index youpi.bad_extension;
 		autoindex off;
 		allowed_methods GET POST;
-		client_max_body_size 100000;
+		client_max_body_size 1024;
 		cgi .bla ./cgi_test;
 	}
 }

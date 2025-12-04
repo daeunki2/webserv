@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 13:01:15 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/04 13:08:27 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -64,6 +64,7 @@ private:
 
 	std::string buildHttpResponseFromCgi(const std::string& cgiOutput);
 	void		freeEnv(char **env) const;
+	std::string build413Response() const;
 
 	public:
     Response_Builder(Server* server, const http_request& req, Client* client);

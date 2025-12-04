@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 13:02:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/04 13:13:25 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -469,51 +469,49 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
 /*                                  build()                                   */
 /* ************************************************************************** */
 
+
+std::string Response_Builder::build413Response() const
+{
+    std::ostringstream oss;
+    oss << "HTTP/1.1 413 Payload Too Large\r\n";
+    oss << "Content-Length: 0\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
+    return oss.str();
+}
+
 std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
 
-    Logger::info(Logger::TAG_REQ,
-        "FD " + toString(_client->get_fd()) +
-        " build response for " + method + " " + path);
+    Logger::info(Logger::TAG_REQ,"FD " + toString(_client->get_fd()) +" build response for " + method + " " + path);
 
     if (_client->get_error_code() != 0)
     {
         int code = _client->get_error_code();
-        Logger::warn(Logger::TAG_EVENT,
-            "FD " + toString(_client->get_fd()) + " responding to parse error");
-        Logger::info(Logger::TAG_EVENT,
-            "FD " + toString(_client->get_fd()) + " response decided: " + toString(code) + " " + statusMessage(code));
+        Logger::warn(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " responding to parse error");
+        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " response decided: " + toString(code) + " " + statusMessage(code));
         return buildErrorResponse(code, statusMessage(code));
     }
 
     const Location *loc = matchLocation(path);
     if (loc)
-        Logger::info(Logger::TAG_REQ,
-            "Matched location: " + loc->getPath());
+        Logger::info(Logger::TAG_REQ,"Matched location: " + loc->getPath());
     else
-        Logger::info(Logger::TAG_REQ,
-            "Matched location: <none>");
+        Logger::info(Logger::TAG_REQ,"Matched location: <none>");
 
     if (!isMethodAllowed(loc))
     {
-        Logger::warn(Logger::TAG_EVENT,
-            "FD " + toString(_client->get_fd()) + " method not allowed: " + method);
-        Logger::info(Logger::TAG_EVENT,
-            "FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
+        Logger::warn(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " method not allowed: " + method);
+        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
         return buildErrorResponse(405, "Method Not Allowed");
     }
 
     if (loc && loc->isRedirect())
     {
-        Logger::info(Logger::TAG_EVENT,
-            "FD " + toString(_client->get_fd()) +
-            " redirect " + toString(loc->getRedirectCode()) +
-            " -> " + loc->getRedirectUrl());
-        return buildRedirectResponse(
-            loc->getRedirectCode(),
-            loc->getRedirectUrl());
+        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) +" redirect " + toString(loc->getRedirectCode()) +" -> " + loc->getRedirectUrl());
+        return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
     }
 
     if (method == "POST" && loc && loc->hasClientMaxBodySize())
@@ -523,15 +521,9 @@ std::string Response_Builder::build()
 
         if (body_len > limit)
         {
-            Logger::warn(Logger::TAG_EVENT,
-                "FD " + toString(_client->get_fd()) +
-                " request entity too large (body=" +
-                toString(body_len) + ", limit=" +
-                toString(limit) + ")");
-            Logger::info(Logger::TAG_EVENT,
-                "FD " + toString(_client->get_fd()) +
-                " response decided: 413 Payload Too Large");
-            return buildErrorResponse(413, "Payload Too Large");
+            Logger::warn(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) +" request entity too large (body=" +toString(body_len) + ", limit=" +toString(limit) + ")");
+            Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) +" response decided: 413 Payload Too Large");
+            return build413Response();
         }
     }
 

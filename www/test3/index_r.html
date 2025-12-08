@@ -182,7 +182,8 @@ const translations = {
         desc: "Serveur Saucisson – Page de démonstration Webserv.",
         deleteLabel: "DELETE chemin (ex: /upload/test.txt)",
         postLabel: "Upload fichier → POST /upload",
-        baguetteLabel: "Vin → Saucisson"
+        baguetteLabel: "Euros disponibles",
+        priceLabel: "Prix d'un saucisson (€)"
     },
     en: {
         title: "Saucisson Server 🌭",
@@ -190,7 +191,8 @@ const translations = {
         desc: "Saucisson test server – Webserv demo page.",
         deleteLabel: "DELETE path (ex: /upload/test.txt)",
         postLabel: "Upload file → POST /upload",
-        baguetteLabel: "Wine → Saucisson"
+        baguetteLabel: "Euros you have",
+        priceLabel: "Saucisson price (€)"
     },
     kr: {
         title: "소시송 서버 🌭",
@@ -198,11 +200,14 @@ const translations = {
         desc: "소시송 테마 Webserv 테스트 페이지",
         deleteLabel: "삭제할 경로 (예: /upload/test.txt)",
         postLabel: "파일 업로드 → POST /upload",
-        baguetteLabel: "와인 → 소시송"
+        baguetteLabel: "보유 유로",
+        priceLabel: "소시송 가격 (€)"
     }
 };
+let currentLang = "fr";
 
 function changeLang(lang) {
+    currentLang = lang;
     const t = translations[lang];
     document.getElementById("title").innerText = t.title;
     document.getElementById("subtitle").innerText = t.subtitle;
@@ -211,10 +216,12 @@ function changeLang(lang) {
     const deleteInput = document.getElementById("delete-label");
     const postLabel = document.getElementById("post-label");
     const baguette = document.getElementById("baguette-label");
+    const priceLabel = document.getElementById("baguette-price-label");
 
     if (deleteInput) deleteInput.innerText = t.deleteLabel;
     if (postLabel) postLabel.innerText = t.postLabel;
     if (baguette) baguette.innerText = t.baguetteLabel;
+    if (priceLabel) priceLabel.innerText = t.priceLabel;
 }
 
 /* GET */
@@ -278,18 +285,29 @@ function sendCGI() {
     clearUI();
     document.getElementById("extra-ui").innerHTML = `
         <div class="input-box">
-            <label id="baguette-label">Wine → Saucisson</label>
-            <input type="text" id="baguette-input">
+            <label id="baguette-label">Euros you have</label>
+            <input type="text" id="baguette-input" placeholder="5">
+            <label id="baguette-price-label">Saucisson price (€)</label>
+            <input type="text" id="baguette-price-input" placeholder="2.5">
             <button class="method-btn" onclick="runBaguetteCGI()">Convert</button>
         </div>`;
 }
 
 function runBaguetteCGI() {
     const v = document.getElementById("baguette-input").value;
-    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}`)
+    const price = document.getElementById("baguette-price-input").value || "2.5";
+    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}&price=${encodeURIComponent(price)}`)
         .then(res => res.text().then(t => {
+            const count = t.trim();
+            let body;
+            if (currentLang === "fr")
+                body = `Vous pouvez acheter <b>${count}</b> saucissons avec <b>${v}€</b> (prix ${price}€).`;
+            else if (currentLang === "kr")
+                body = `당신의 <b>${v}유로</b>로 <b>${count}개</b>의 소시송을 살 수 있어요 (가격 ${price}유로).`;
+            else
+                body = `You can buy <b>${count}</b> saucissons with <b>${v}€</b> (price ${price}€).`;
             document.getElementById("response-display").innerHTML =
-                `<h3>CGI RESULT</h3>${t}`;
+                `<h3>CGI RESULT</h3>${body}`;
         }));
 }
 </script>

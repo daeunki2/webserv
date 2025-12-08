@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 13:13:25 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 21:09:46 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <cctype>
 
 /* ************************************************************************** */
 /*                               Constructor                                  */
@@ -62,28 +63,6 @@ std::string Response_Builder::statusMessage(int status) const
 	return "Unknown";
 }
 
-const Location* Response_Builder::matchLocation(const std::string &path) const
-{
-    const std::vector<Location> &locs = _server->getLocations();
-    const Location *best = 0;
-    size_t bestLen = 0;
-
-    for (size_t i = 0; i < locs.size(); ++i)
-    {
-        const std::string &lp = locs[i].getPath();
-
-        if (lp.size() == 0)
-            continue;
-
-        if (path.compare(0, lp.size(), lp) == 0 && lp.size() > bestLen)
-        {
-            best = &locs[i];
-            bestLen = lp.size();
-        }
-    }
-    return best;
-}
-
 bool Response_Builder::isMethodAllowed(const Location *loc) const
 {
     if (!loc)
@@ -121,21 +100,54 @@ std::string Response_Builder::getMimeType(const std::string &path) const
 
 std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
 {
-    std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
+    // root 구함
+    std::string root = (loc && !loc->getRoot().empty())
+                        ? loc->getRoot()
+                        : _server->getRoot();
 
+    // location prefix 제거
     std::string url = path;
+    if (loc)
+    {
+        const std::string& lp = loc->getPath(); // "/directory/"
+        if (path.compare(0, lp.size(), lp) == 0)
+            url = path.substr(lp.size());        // "youpi.bla"
+    }
 
-    if (loc && path.compare(0, loc->getPath().size(), loc->getPath()) == 0)
-        url = path.substr(loc->getPath().size());
+    // url 앞 '/' 제거
+    if (!url.empty() && url[0] == '/')
+        url.erase(0, 1);
 
-    if (!root.empty() && root[root.size() - 1] == '/')
-        root.erase(root.size() - 1);
+    // ----- 절대경로로 변환 -----
+    char cwd[PATH_MAX];
+    getcwd(cwd, sizeof(cwd));
 
-    if (url.empty() || url[0] != '/')
-        url = "/" + url;
+    std::string full = std::string(cwd) + "/" + root;
 
-    return root + url;
+    // root 끝 '/' 제거
+    if (!full.empty() && full[full.size()-1] == '/')
+        full.erase(full.size()-1);
+
+    return full + "/" + url;
 }
+
+// std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
+// {
+//     std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
+
+//     std::string url = path;
+
+//     if (loc && path.compare(0, loc->getPath().size(), loc->getPath()) == 0)
+//         url = path.substr(loc->getPath().size());
+
+//     if (!root.empty() && root[root.size() - 1] == '/')
+//         root.erase(root.size() - 1);
+
+//     if (url.empty() || url[0] != '/')
+//         url = "/" + url;
+
+//     return root + url;
+// }
 
 
 std::string Response_Builder::findErrorPage(int status) const
@@ -434,11 +446,13 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
 
     std::string uploadDir = loc->getUploadPath();
 
+    if (uploadDir.empty())
+        return buildSimpleResponse(200, "<html><body><h1>POST OK</h1></body></html>");
+
     std::string ctype = _req.get_header("Content-Type");
     size_t bpos = ctype.find("boundary=");
     if (bpos == std::string::npos)
     {
-//        Logger::warn("Missing multipart boundary");
         return buildErrorResponse(400, "Missing multipart boundary");
     }
 
@@ -484,83 +498,95 @@ std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
+    size_t body_size          = _req.get_body().size();
 
-    Logger::info(Logger::TAG_REQ,"FD " + toString(_client->get_fd()) +" build response for " + method + " " + path);
+    Logger::info(Logger::TAG_REQ,
+        "FD " + toString(_client->get_fd()) +
+        " build response for " + method + " " + path
+    );
 
+    // ---------------- parse error ----------------
     if (_client->get_error_code() != 0)
     {
-        int code = _client->get_error_code();
-        Logger::warn(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " responding to parse error");
-        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " response decided: " + toString(code) + " " + statusMessage(code));
-        return buildErrorResponse(code, statusMessage(code));
+        Logger::warn(Logger::TAG_REQ, "Returning parse error " +
+            toString(_client->get_error_code()) + " for FD " + toString(_client->get_fd()));
+        return buildErrorResponse(_client->get_error_code(),
+                                  statusMessage(_client->get_error_code()));
     }
 
-    const Location *loc = matchLocation(path);
+    // ---------------- location ----------------
+    const Location *loc = (_server ? _server->findLocation(path) : NULL);
     if (loc)
-        Logger::info(Logger::TAG_REQ,"Matched location: " + loc->getPath());
+        Logger::info(Logger::TAG_REQ, "Matched location: " + loc->getPath());
     else
-        Logger::info(Logger::TAG_REQ,"Matched location: <none>");
+        Logger::info(Logger::TAG_REQ, "Matched location: <none>");
 
+    // ---------------- method check ----------------
     if (!isMethodAllowed(loc))
     {
-        Logger::warn(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " method not allowed: " + method);
-        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
+        Logger::warn(Logger::TAG_REQ, "Method not allowed: " + method + " " + path);
         return buildErrorResponse(405, "Method Not Allowed");
     }
 
+    // ---------------- redirect ----------------
     if (loc && loc->isRedirect())
     {
-        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) +" redirect " + toString(loc->getRedirectCode()) +" -> " + loc->getRedirectUrl());
-        return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
+        Logger::info(Logger::TAG_REQ, "Redirecting " + path + " -> " + loc->getRedirectUrl());
+        return buildRedirectResponse(loc->getRedirectCode(),
+                                     loc->getRedirectUrl());
     }
 
+    // ---------------- body limit ----------------
     if (method == "POST" && loc && loc->hasClientMaxBodySize())
     {
-        size_t limit    = loc->getClientMaxBodySize();
-        size_t body_len = _req.get_body().size();
+        long long limit = loc->getClientMaxBodySize();
 
-        if (body_len > limit)
+        if (limit > 0 && body_size > (size_t)limit)
         {
-            Logger::warn(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) +" request entity too large (body=" +toString(body_len) + ", limit=" +toString(limit) + ")");
-            Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd()) +" response decided: 413 Payload Too Large");
+            Logger::warn(Logger::TAG_REQ, "Body exceeds limit (" + toString(body_size) + " > " + toString(limit) + ")");
             return build413Response();
         }
     }
 
-    if ((method == "GET" || method == "POST") && isCgiRequest(loc, path))
+    // ============================================================
+    //                     ★ CGI 조건 검사 ★
+    // ============================================================
+    bool isCgi = isCgiRequest(loc, path);
+
+    if (isCgi)
     {
-        std::string script_relative = path.substr(loc->getPath().length());
-        std::string script_path = loc->getRoot();
-        
-        if (script_path.empty() || script_path[script_path.length() - 1] != '/')
-        {
-            script_path += "/";
-        }
-        if (!script_relative.empty() && script_relative[0] == '/')
-        {
-            script_relative.erase(0, 1);
-        }
-        script_path += script_relative;
-        return handleCgi(loc, script_path);
+        std::string script_path = applyRoot(loc, path);
+        Logger::info(Logger::TAG_CGI, "Launching CGI for " + method + " " + path);
+        if (!_client->start_cgi_process(loc, script_path))
+            return buildErrorResponse(500, "CGI start failed");
+
+        return "";
     }
 
+    // ---------------- methods ----------------
     if (method == "HEAD")
     {
         std::string res = handleGet(loc);
         size_t pos = res.find("\r\n\r\n");
         if (pos != std::string::npos)
-            res.erase(pos + 4);
+            res.erase(pos + 4); // remove body
         return res;
     }
 
     if (method == "GET")
+    {
         return handleGet(loc);
+    }
 
     if (method == "POST")
+    {
         return handlePost(loc, path);
+    }
 
     if (method == "DELETE")
+    {
         return handleDelete(loc, path);
+    }
 
     return buildErrorResponse(501, "Not Implemented");
 }

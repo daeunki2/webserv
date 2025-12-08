@@ -35,7 +35,7 @@ private:
     int _redirectCode;
     std::string _redirectUrl;
 
-	size_t _clientMaxBodySize;
+    long long _clientMaxBodySize;
 	bool   _hasClientMaxBodySize;
     // CGI
     std::string _cgiExtension;
@@ -57,7 +57,7 @@ public:
     void setAutoindex(bool enable);
     void setUploadPath(const std::string &p);
 
-	void setClientMaxBodySize(size_t size);
+    void setClientMaxBodySize(long long size);
 
 
     void setRedirect(int code, const std::string &url);
@@ -76,7 +76,7 @@ public:
     const std::string &getRedirectUrl() const;
 
 	bool   hasClientMaxBodySize() const;
-	size_t getClientMaxBodySize() const;
+    long long getClientMaxBodySize() const;
 	
 	bool hasCgi() const;
     const std::string &getCgiExtension() const;

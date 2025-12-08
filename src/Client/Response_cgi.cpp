@@ -6,253 +6,141 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/01 18:37:46 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 13:01:05 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/08 10:30:04 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Response_Builder.hpp"
-#include <unistd.h>
-#include <sys/wait.h>
-
-
-bool Response_Builder::isCgiRequest(const Location* loc,const std::string& path) const
+#include "Logger.hpp"
+#include <sys/stat.h>
+bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path) const
 {
     if (!loc || !loc->hasCgi())
         return false;
 
-    std::string::size_type dot = path.rfind('.');
+    // --- 1) query string 제거 ---
+    std::string clean = path;
+    size_t q = clean.find('?');
+    if (q != std::string::npos)
+        clean = clean.substr(0, q);
+
+    // --- 2) 확장자 추출 ---
+    size_t dot = clean.rfind('.');
     if (dot == std::string::npos)
         return false;
 
-    std::string extension = path.substr(dot);
-    if (extension != loc->getCgiExtension())
+    std::string ext = clean.substr(dot);
+
+    if (ext != loc->getCgiExtension())
         return false;
 
-    std::string script_path;
-    std::string path_suffix = path.substr(loc->getPath().length());
-    
-    if (extension == loc->getCgiExtension()) 
-    {
-        script_path = loc->getRoot();
-        
-        if (script_path.empty() || script_path[script_path.length() - 1] != '/')
-		{
-            script_path += "/";
-        }
-        if (!path_suffix.empty() && path_suffix[0] == '/')
-		{
-            path_suffix.erase(0, 1);
-        }
-        script_path += path_suffix; // "./cgi-bin/baguette.py"
-    } 
-    else 
-    {
-        script_path = loc->getRoot() + path_suffix; 
-    }
+    // --- 3) 실제 파일 존재하는지 확인 ---
+    std::string fsPath = applyRoot(loc, clean);
+    struct stat st;
 
-    if (access(script_path.c_str(), F_OK) != 0) 
+    if (stat(fsPath.c_str(), &st) != 0)
     {
         return false;
     }
 
-    if (access(script_path.c_str(), X_OK) != 0)
+    if (!S_ISREG(st.st_mode))
     {
         return false;
     }
+
     return true;
 }
 
 
-char **Response_Builder::buildCgiEnv(const std::string& script_path) const
-{
-    char **env = new char*[10];
-    int i = 0;
-
-    env[i++] = ft_strdup(("REQUEST_METHOD=" + _req.get_method()).c_str());
-    env[i++] = ft_strdup(("QUERY_STRING=" + _req.get_query()).c_str());
-    env[i++] = ft_strdup(("SCRIPT_FILENAME=" + script_path).c_str());
-    env[i++] = ft_strdup("SERVER_PROTOCOL=HTTP/1.1");
-    env[i++] = ft_strdup("GATEWAY_INTERFACE=CGI/1.1");
-    env[i++] = ft_strdup("REDIRECT_STATUS=200");
-
-    env[i] = NULL;
-    return env;
-}
-
-void Response_Builder::freeEnv(char **envp) const
-{
-    if (!envp)
-        return;
-
-    for (int i = 0; envp[i] != NULL; ++i)
-        delete [] envp[i];
-
-    delete [] envp;
-}
-
-std::string Response_Builder::handleCgi(const Location* loc, const std::string& script_path)
-{
-    int in_pipe[2];
-    int out_pipe[2];
-
-    if (pipe(in_pipe) < 0 || pipe(out_pipe) < 0)
-        return buildErrorResponse(500, "pipe failed");
-
-    pid_t pid = fork();
-    if (pid < 0)
-        return buildErrorResponse(500, "fork failed");
-
-    if (pid == 0)
-    {
-        dup2(in_pipe[0], STDIN_FILENO);
-        dup2(out_pipe[1], STDOUT_FILENO);
-
-        close(in_pipe[1]);
-        close(out_pipe[0]);
-        close(in_pipe[0]);
-        close(out_pipe[1]);
-
-		char *argv[3];
-		argv[0] = const_cast<char*>(loc->getCgiPath().c_str()); // /usr/bin/python3
-		argv[1] = const_cast<char*>(script_path.c_str());       // ./cgi-bin/baguette.py
-		argv[2] = NULL;
-        char **envp = buildCgiEnv(script_path);
-        if (!envp)
-        {
-            kill(getpid(), SIGTERM);
-			return "";
-        }
-		for (int k = 0; envp[k]; ++k)
-		{
-    		Logger::debug(Logger::TAG_CGI, std::string("[CGI ENV] ") + envp[k]);
-		}
-        execve(argv[0], argv, envp);
-
-        freeEnv(envp);
-        kill(getpid(), SIGTERM);
-		return "";
-    }
-
-    close(in_pipe[0]);
-    close(out_pipe[1]);
-
-
-	const std::string &body = _req.get_body();
-if (_req.get_method() == "POST" && !body.empty())
-{
-    const char *data = body.c_str();
-    size_t      len  = body.size();
-    size_t      sent = 0;
-
-    while (sent < len)
-    {
-        ssize_t written = write(in_pipe[1], data + sent, len - sent);
-        if (written < 0)
-        {
-            close(in_pipe[1]);
-            close(out_pipe[0]);
-            return buildErrorResponse(500, "CGI write failed");
-        }
-        sent += static_cast<size_t>(written);
-    }
-}
-
-    close(in_pipe[1]);
-
-    std::string cgi_output;
-    char buffer[4096];
-    ssize_t r;
-
-    while ((r = read(out_pipe[0], buffer, sizeof(buffer))) > 0)
-        cgi_output.append(buffer, r);
-
-    close(out_pipe[0]);
-    waitpid(pid, NULL, 0);
-	Logger::debug(Logger::TAG_CGI, std::string("[CGI RAW OUTPUT]\n") + cgi_output);
-
-    return buildHttpResponseFromCgi(cgi_output);
-}
-
-
-
 std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOutput)
 {
-    std::ostringstream response;
+    std::ostringstream res;
 
     std::string headers;
     std::string body;
 
-    size_t header_end = cgiOutput.find("\r\n\r\n");
-    size_t header_len = 4;
+    // ---------------------------
+    // 헤더 / 바디 분리
+    // ---------------------------
+    size_t pos  = cgiOutput.find("\r\n\r\n");
+    size_t skip = 4;
 
-    if (header_end == std::string::npos)
+    if (pos == std::string::npos)
     {
-        header_end = cgiOutput.find("\n\n");
-        header_len = 2;
+        pos  = cgiOutput.find("\n\n");
+        skip = 2;
     }
 
-    if (header_end != std::string::npos)
+    if (pos != std::string::npos)
     {
-        headers = cgiOutput.substr(0, header_end);
-        body    = cgiOutput.substr(header_end + header_len);
+        headers = cgiOutput.substr(0, pos);
+        body    = cgiOutput.substr(pos + skip);
     }
     else
     {
+        // 헤더가 없는 경우 → 전체가 body
+        headers.clear();
         body = cgiOutput;
     }
 
-    while (!body.empty() && (body[0] == '\n' || body[0] == '\r'))
-        body.erase(0, 1);
+    // ---------------------------
+    // CGI 헤더 파싱
+    // ---------------------------
+    std::string status = "200 OK";
+    bool hasContentLength = false;
+    std::ostringstream forwardHeaders;
 
-    std::string status_code = "200 OK";
-    std::ostringstream forwarded_headers;
-
-    std::istringstream header_stream(headers);
+    std::istringstream hs(headers);
     std::string line;
 
-    while (std::getline(header_stream, line))
+    while (std::getline(hs, line))
     {
+        // CR 제거
         if (!line.empty() && line[line.size() - 1] == '\r')
             line.erase(line.size() - 1);
 
+        if (line.empty())
+            continue;
+
         if (line.find("Status:") == 0)
         {
-            status_code = line.substr(7);
-            while (!status_code.empty() && status_code[0] == ' ')
-                status_code.erase(0, 1);
+            status = line.substr(7);
+            while (!status.empty() && status[0] == ' ')
+                status.erase(0, 1);
         }
-        else if (!line.empty())
+        else if (line.find("Content-Length:") == 0)
         {
-            forwarded_headers << line << "\r\n";
+            hasContentLength = true;
+            forwardHeaders << line << "\r\n";
+        }
+        else
+        {
+            forwardHeaders << line << "\r\n";
         }
     }
 
-    int code = 200;
+    // ---------------------------
+    // 최종 HTTP 응답 구성
+    // ---------------------------
+    res << "HTTP/1.1 " << status << "\r\n";
+    res << forwardHeaders.str();
+
+    if (!hasContentLength)
     {
-        std::istringstream iss(status_code);
-        iss >> code;
-    }
-	Logger::info(Logger::TAG_CGI, "CGI final status: " + status_code);
-
-    bool no_content = (code == 204 || code == 304);
-
-    response << "HTTP/1.1 " << status_code << "\r\n";
-    response << forwarded_headers.str();
-
-    if (!no_content)
-    {
-        if (forwarded_headers.str().find("Content-Type") == std::string::npos)
-            response << "Content-Type: text/plain\r\n";
-
-        response << "Content-Length: " << body.size() << "\r\n";
+        res << "Content-Length: " << body.size() << "\r\n";
     }
 
-    response << "Connection: "
-            << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n";
-    response << "\r\n";
+    std::string connection = _req.keep_alive() ? "keep-alive" : "close";
+    res << "Connection: " << connection << "\r\n";
+    res << "\r\n";
 
-    if (!no_content)
-        response << body;
+    // body 그대로 붙임
+    res << body;
 
-    return response.str();
+    return res.str();
+}
+
+std::string Response_Builder::buildCgiResponse(const std::string& cgiOutput)
+{
+	return buildHttpResponseFromCgi(cgiOutput);
 }

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 13:08:27 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 18:59:56 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -39,7 +39,6 @@ private:
 private:
     // 내부 유틸리티
     std::string statusMessage(int status) const;
-    const Location* matchLocation(const std::string &path) const;
     bool isMethodAllowed(const Location *loc) const;
     std::string getMimeType(const std::string &path) const;
     std::string applyRoot(const Location *loc, const std::string &path) const;
@@ -59,11 +58,7 @@ private:
 	std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
 	/*CGI*/
 	bool		isCgiRequest(const Location* loc, const std::string& path) const;
-	std::string handleCgi(const Location* loc, const std::string& script_path);
-	char**		buildCgiEnv( const std::string& script_path) const;
-
 	std::string buildHttpResponseFromCgi(const std::string& cgiOutput);
-	void		freeEnv(char **env) const;
 	std::string build413Response() const;
 
 	public:
@@ -71,6 +66,7 @@ private:
     ~Response_Builder();
 
     std::string build();
+	std::string buildCgiResponse(const std::string& cgiOutput);
 };
 
 #endif

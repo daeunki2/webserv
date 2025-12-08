@@ -6,11 +6,12 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 16:45:27 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 17:57:31 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "config_parser.hpp"
+#include "Utils.hpp"
 
 ConfigParser::ConfigParser() : _i(0)
 {}
@@ -197,7 +198,11 @@ void ConfigParser::parseServerBlock()
             expect(";");
             if (!isNumber(size))
                 throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
-            s.setClientMaxBodySize(toInt(size));
+            
+			long long v =toLLong(size);
+			if (v == 0)
+				v = -1;
+			s.setClientMaxBodySize(v);
         }
         else if (t == "error_page")
         {
@@ -296,7 +301,10 @@ void ConfigParser::parseLocationBlock(Server &srv)
 			expect(";");
 			if (!isNumber(size))
 				throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
-			loc.setClientMaxBodySize(toInt(size));
+			long long v = toLLong(size);
+			if (v == 0)
+				v = -1;    // -1 = unlimited
+			loc.setClientMaxBodySize(v);
 		}
         else
 		{

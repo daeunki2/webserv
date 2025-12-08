@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 12:34:15 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 22:00:38 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -115,11 +115,7 @@ void Server_Manager::init_sockets()
         _listening_fds.push_back(fd);
         _fd_to_server[fd] = &_servers[i];
 
-        struct pollfd pfd;
-        pfd.fd      = fd;
-        pfd.events  = POLLIN;
-        pfd.revents = 0;
-        _poll_fds.push_back(pfd);
+        add_poll_fd(fd, POLLIN);
 
         Logger::info(Logger::TAG_EVENT, "Listening on port " + toString(_servers[i].getPort()));    }
 }
@@ -156,6 +152,95 @@ void Server_Manager::update_poll_events(int fd, short events)
     }
 }
 
+void Server_Manager::add_poll_fd(int fd, short events)
+{
+	struct pollfd pfd;
+	pfd.fd = fd;
+	pfd.events = events;
+	pfd.revents = 0;
+	_poll_fds.push_back(pfd);
+}
+
+void Server_Manager::remove_poll_fd(int fd)
+{
+	for (size_t i = 0; i < _poll_fds.size(); ++i)
+	{
+		if (_poll_fds[i].fd == fd)
+		{
+			_poll_fds.erase(_poll_fds.begin() + i);
+			break;
+		}
+	}
+}
+
+void Server_Manager::register_cgi_fds(Client &client)
+{
+	if (!client.has_active_cgi())
+		return;
+	int in_fd = client.get_cgi_stdin_fd();
+	if (in_fd >= 0 && _cgi_fd_map.find(in_fd) == _cgi_fd_map.end())
+	{
+		add_poll_fd(in_fd, POLLOUT);
+		_cgi_fd_map[in_fd] = CgiFdInfo(&client, false);
+	}
+	int out_fd = client.get_cgi_stdout_fd();
+	if (out_fd >= 0 && _cgi_fd_map.find(out_fd) == _cgi_fd_map.end())
+	{
+		add_poll_fd(out_fd, POLLIN);
+		_cgi_fd_map[out_fd] = CgiFdInfo(&client, true);
+	}
+}
+
+void Server_Manager::unregister_cgi_fd(int fd)
+{
+	std::map<int, CgiFdInfo>::iterator it = _cgi_fd_map.find(fd);
+	if (it != _cgi_fd_map.end())
+		_cgi_fd_map.erase(it);
+	remove_poll_fd(fd);
+}
+
+bool Server_Manager::handle_cgi_poll_event(struct pollfd &pfd)
+{
+	std::map<int, CgiFdInfo>::iterator it = _cgi_fd_map.find(pfd.fd);
+	if (it == _cgi_fd_map.end())
+		return false;
+	Client *client = it->second.client;
+	bool is_stdout = it->second.is_stdout;
+	bool ok = true;
+
+	if (pfd.revents & (POLLERR | POLLNVAL))
+		ok = false;
+	else if (!is_stdout && (pfd.revents & POLLOUT))
+		ok = client->handle_cgi_stdin_event();
+	else if (is_stdout && (pfd.revents & (POLLIN | POLLHUP)))
+		ok = client->handle_cgi_stdout_event();
+
+	bool removed = false;
+	if (!ok)
+	{
+		unregister_cgi_fd(pfd.fd);
+		removed = true;
+		if (client->get_state() == Client::SENDING_RESPONSE)
+			update_poll_events(client->get_fd(), POLLOUT);
+		return removed;
+	}
+
+	if (!is_stdout && client->is_cgi_body_complete())
+	{
+		unregister_cgi_fd(pfd.fd);
+		removed = true;
+	}
+	else if (is_stdout && client->is_cgi_stdout_closed())
+	{
+		unregister_cgi_fd(pfd.fd);
+		removed = true;
+		client->handle_cgi_completion();
+		if (client->get_state() == Client::SENDING_RESPONSE)
+			update_poll_events(client->get_fd(), POLLOUT);
+	}
+	return removed;
+}
+
 /* ************************************************************************** */
 /*                            Client management                               */
 /* ************************************************************************** */
@@ -163,16 +248,24 @@ void Server_Manager::update_poll_events(int fd, short events)
 void Server_Manager::close_connection(int client_fd)
 {
     Logger::info(Logger::TAG_EVENT, "Closing client FD " + toString(client_fd));
-    _clients.erase(client_fd);
+    std::map<int, Client>::iterator it = _clients.find(client_fd);
+    if (it == _clients.end())
+        return;
+    Client &client = it->second;
+	client.abort_cgi();
+	for (std::map<int, CgiFdInfo>::iterator cgi_it = _cgi_fd_map.begin(); cgi_it != _cgi_fd_map.end(); )
+	{
+		if (cgi_it->second.client == &client)
+		{
+			remove_poll_fd(cgi_it->first);
+			_cgi_fd_map.erase(cgi_it++);
+		}
+		else
+			++cgi_it;
+	}
+    _clients.erase(it);
 
-    for (size_t i = 0; i < _poll_fds.size(); ++i)
-    {
-        if (_poll_fds[i].fd == client_fd)
-        {
-            _poll_fds.erase(_poll_fds.begin() + i);
-            break;
-        }
-    }
+    remove_poll_fd(client_fd);
 
     if (close(client_fd) < 0)
         Logger::error(Logger::TAG_FD, "close() failed for FD " + toString(client_fd) + ": " + std::string(strerror(errno)));}
@@ -235,11 +328,7 @@ void Server_Manager::accept_new_client(int server_fd)
         c.last_active_time = time(NULL);
         _clients.insert(std::make_pair(client_fd, c));
 
-        struct pollfd pfd;
-        pfd.fd = client_fd;
-        pfd.events = POLLIN;
-        pfd.revents = 0;
-        _poll_fds.push_back(pfd);
+        add_poll_fd(client_fd, POLLIN);
 
       Logger::info(Logger::TAG_EVENT, "Accepted new client FD " + toString(client_fd));
 	}
@@ -278,6 +367,50 @@ bool Server_Manager::receive_request(int fd)
     return false;
 }
 
+// bool Server_Manager::send_response(int client_fd)
+// {
+//     Client &client = _clients[client_fd];
+//     const std::string &buf = client.get_response_buffer();
+//     size_t &sent = client.get_sent_bytes();
+
+//     size_t total = buf.size();
+//     if (sent >= total)
+//     {
+//         client.update_state(Client::CONNECTION_CLOSE);
+//         close_connection(client_fd);
+//         return true;
+//     }
+
+//     ssize_t bytes_sent = send(client_fd, buf.c_str() + sent, total - sent, 0);
+
+//     if (bytes_sent < 0)
+//     {
+// 		Logger::error(Logger::TAG_FD, "send() failed for fd " + toString(client_fd));
+//         close_connection(client_fd);
+//         return true;
+//     }
+
+//     sent += bytes_sent;
+
+// 	if (sent >= total)
+// 	{
+// 	    Logger::info(Logger::TAG_EVENT, "send response to fd " + toString(client_fd));
+//     	if (client.get_request().keep_alive())
+//     	{
+//         	client.reset();
+//         	update_poll_events(client_fd, POLLIN);
+//         	client.update_state(Client::RECVING_REQUEST);
+//     	}
+//     	else
+//     	{
+//         	client.update_state(Client::CONNECTION_CLOSE);
+//         	close_connection(client_fd);
+//     	}
+// 		return true;
+// 	}
+//     return false;
+// }
+
 bool Server_Manager::send_response(int client_fd)
 {
     Client &client = _clients[client_fd];
@@ -285,42 +418,76 @@ bool Server_Manager::send_response(int client_fd)
     size_t &sent = client.get_sent_bytes();
 
     size_t total = buf.size();
+
+    if (sent == 0 && !buf.empty())
+    {
+        size_t lineEnd = buf.find("\r\n");
+        std::string statusLine = (lineEnd != std::string::npos) ? buf.substr(0, lineEnd) : buf;
+        std::string statusCode = "unknown";
+        size_t sp1 = statusLine.find(' ');
+        if (sp1 != std::string::npos)
+        {
+            size_t sp2 = statusLine.find(' ', sp1 + 1);
+            if (sp2 != std::string::npos)
+                statusCode = statusLine.substr(sp1 + 1, sp2 - sp1 - 1);
+            else
+                statusCode = statusLine.substr(sp1 + 1);
+        }
+        const http_request &req = client.get_request();
+        Logger::info(Logger::TAG_EVENT,
+            "Responding FD " + toString(client_fd) +
+            " status " + statusCode +
+            " ← " + req.get_method() + " " + req.get_path());
+    }
+
     if (sent >= total)
     {
+        bool keep = client.get_request().keep_alive() && client.get_error_code() == 0;
+        if (keep)
+        {
+            client.reset();
+            update_poll_events(client_fd, POLLIN);
+            client.update_state(Client::RECVING_REQUEST);
+            return true;
+        }
         client.update_state(Client::CONNECTION_CLOSE);
         close_connection(client_fd);
         return true;
     }
 
-    ssize_t bytes_sent = send(client_fd, buf.c_str() + sent, total - sent, 0);
+    ssize_t bytes_sent = send(client_fd, buf.data() + sent, total - sent, 0);
 
     if (bytes_sent < 0)
     {
-		Logger::error(Logger::TAG_FD, "send() failed for fd " + toString(client_fd));
+        Logger::warn(Logger::TAG_FD, "send() failed for FD " + toString(client_fd));
         close_connection(client_fd);
         return true;
     }
+    if (bytes_sent == 0)
+        return false;
 
     sent += bytes_sent;
 
-	if (sent >= total)
-	{
-    	if (client.get_request().keep_alive())
-    	{
-        	client.reset();
-        	update_poll_events(client_fd, POLLIN);
-        	client.update_state(Client::RECVING_REQUEST);
-    	}
-    	else
-    	{
-        	client.update_state(Client::CONNECTION_CLOSE);
-        	close_connection(client_fd);
-    	}
-		Logger::info(Logger::TAG_EVENT,"send response to FD " + toString(client_fd));
-    	return true;
-	}
+    if (sent >= total)
+    {
+        bool keep = client.get_request().keep_alive() && client.get_error_code() == 0;
+        if (keep)
+        {
+            client.reset();
+            update_poll_events(client_fd, POLLIN);
+            client.update_state(Client::RECVING_REQUEST);
+        }
+        else
+        {
+            client.update_state(Client::CONNECTION_CLOSE);
+            close_connection(client_fd);
+        }
+        return true;
+    }
+
     return false;
 }
+
 
 
 /* ************************************************************************** */
@@ -368,6 +535,15 @@ void Server_Manager::run()
 
             bool closed = false;
 
+			std::map<int, CgiFdInfo>::iterator cgi_it = _cgi_fd_map.find(fd);
+			if (cgi_it != _cgi_fd_map.end())
+			{
+				bool removed = handle_cgi_poll_event(pfd);
+				if (removed && i > 0)
+					--i;
+				continue;
+			}
+
             if (is_listening_fd(fd))
             {
                 if (pfd.revents & POLLIN)
@@ -395,11 +571,20 @@ void Server_Manager::run()
                 {
                     Client &client = it->second;
 
-                    if (client.get_state() == Client::REQUEST_COMPLETE||client.get_state() == Client::ERROR)
+                    if (client.get_state() == Client::REQUEST_COMPLETE ||
+                        client.get_state() == Client::ERROR)
                     {
-						client.build_response();
-						client.update_state(Client::SENDING_RESPONSE);
-                        update_poll_events(fd, POLLOUT);
+			client.build_response();
+			Client::ClientState state = client.get_state();
+			if (state == Client::SENDING_RESPONSE)
+			{
+				update_poll_events(fd, POLLOUT);
+			}
+			else if (state == Client::CGI_SENDING_BODY || state == Client::CGI_READING_OUTPUT)
+			{
+				update_poll_events(fd, 0);
+				register_cgi_fds(client);
+			}
                     }
                 }
             }

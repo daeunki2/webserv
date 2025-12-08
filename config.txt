@@ -13,7 +13,7 @@ server
 	location /post_body
 	{
 		allowed_methods POST;
-		client_max_body_size 1024;
+		client_max_body_size 100;
 	}
 
 	location /directory
@@ -22,22 +22,22 @@ server
 		return 301 /directory/;
 	}
 
-	location /directory/
-	{
-		root ./YoupiBanane;
-		index youpi.bad_extension;
-		autoindex off;
-		allowed_methods GET POST;
-		client_max_body_size 1024;
-		cgi .bla ./cgi_test;
-	}
+	location /directory/ {
+    root ./YoupiBanane;
+    index youpi.bad_extension;
+    autoindex off;
+    allowed_methods GET POST;
+    client_max_body_size 0;
+    cgi .bla ./cgi_test;
+}
+
 }
 
 
 
 
 server {
-    listen 8081;
+    listen 8181;
     server_name dev;
 
     root ./www/test1;
@@ -61,42 +61,10 @@ server {
 
 }
 
+  
 server {
-    listen 8484;
-    server_name tester;
-
-    root ./www/test1;
-
-    location / {
-        index index_b.html;
-        allowed_methods GET;
-    }
-
-    location /post_body {
-        allowed_methods POST;
-        client_max_body_size 100;
-    }
-
-    location /directory {
-        allowed_methods GET;
-        return 301 /directory/;
-    }
-
-    location /directory/ {
-        root ./YoupiBanane;
-        index youpi.bad_extension;
-        autoindex off;
-
-        allowed_methods GET POST;
-        cgi .bla ./cgi_test;
-    }
-	
-}
-
-
-server {
-    listen 8181;
-    server_name u_tester;
+    listen 8282;
+    server_name dev;
 
     root ./www/test2;
 
@@ -105,37 +73,29 @@ server {
         allowed_methods GET;
     }
 
-    location /post_body {
-        allowed_methods POST;
-        client_max_body_size 100;
+    location /upload {
+        root ./www/test2/upload;
+        autoindex on;
+        upload ./www/test2/upload;
     }
 
-    location /directory/ {
-        root ./YoupiBanane;
-        index youpi.bad_extension;
-        autoindex off;
+    location /cgi-bin/ {
+        root ./cgi-bin;
         allowed_methods GET POST;
-        cgi .bla ./cgi-bin/baguette.py;
-    }
-	location /cgi-bin/ {
-        root .;
-        allowed_methods POST GET;
-
-        # python 파일은 CGI로 처리
         cgi .py /usr/bin/python3;
     }
+
 }
-
-
 
 server {
     listen 8383;
-    server_name sausage;
+    server_name dev;
 
     root ./www/test3;
 
     location / {
         index index_r.html;
+        allowed_methods GET;
     }
 
     location /upload {
@@ -143,4 +103,11 @@ server {
         autoindex on;
         upload ./www/test3/upload;
     }
+
+    location /cgi-bin/ {
+        root ./cgi-bin;
+        allowed_methods GET POST;
+        cgi .py /usr/bin/python3;
+    }
+
 }

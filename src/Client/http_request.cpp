@@ -30,7 +30,7 @@ http_request::http_request()
 , m_content_length(0)
 , m_has_content_length(false)
 , m_is_chunked(false)
-, m_keep_alive(false)
+, m_keep_alive(true)
 {
 }
 
@@ -86,7 +86,7 @@ void http_request::reset()
     m_content_length     = 0;
     m_has_content_length = false;
     m_is_chunked         = false;
-    m_keep_alive         = false;
+    m_keep_alive         = true;
 }
 
 // ******************************************************

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/29 17:41:47 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 20:21:18 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 17:56:18 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -95,6 +95,11 @@ bool isNumber(const std::string &s)
 }
 
 int toInt(const std::string &s)
+{
+    return std::atoi(s.c_str());
+}
+
+long long toLLong(const std::string &s)
 {
     return std::atoi(s.c_str());
 }

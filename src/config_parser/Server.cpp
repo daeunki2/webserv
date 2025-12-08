@@ -45,7 +45,7 @@ Server::~Server() {}
 void Server::setPort(int p) { _port = p; }
 void Server::setServerName(const std::string &n) { _serverName = n; }
 void Server::setRoot(const std::string &r) { _root = r; }
-void Server::setClientMaxBodySize(size_t size) { _clientMaxBodySize = size; }
+void Server::setClientMaxBodySize(long long size) { _clientMaxBodySize = size; }
 
 void Server::addLocation(const Location &loc) { _locations.push_back(loc); }
 
@@ -59,6 +59,26 @@ void Server::addErrorPage(int code, const std::string &file)
 int Server::getPort() const { return _port; }
 const std::string &Server::getServerName() const { return _serverName; }
 const std::string &Server::getRoot() const { return _root; }
-size_t Server::getClientMaxBodySize() const { return _clientMaxBodySize; }
+long long Server::getClientMaxBodySize() const { return _clientMaxBodySize; }
 const std::vector<Location> &Server::getLocations() const { return _locations; }
 const std::vector<std::pair<int, std::string> > &Server::getErrorPages() const { return _errorPages; }
+
+const Location *Server::findLocation(const std::string &path) const
+{
+    const Location *best = 0;
+    size_t bestLen = 0;
+
+    for (size_t i = 0; i < _locations.size(); ++i)
+    {
+        const std::string &lp = _locations[i].getPath();
+        if (lp.empty())
+            continue;
+
+        if (path.compare(0, lp.size(), lp) == 0 && lp.size() > bestLen)
+        {
+            best = &_locations[i];
+            bestLen = lp.size();
+        }
+    }
+    return best;
+}

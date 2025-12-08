@@ -27,7 +27,7 @@ private:
     int _port;
     std::string _serverName;
     std::string _root;
-    size_t _clientMaxBodySize;
+    long long _clientMaxBodySize;
 	bool        _hasCgi;
 	std::string _cgiExtension;
 	std::string _cgiPath;
@@ -46,7 +46,7 @@ public:
     void setPort(int p);
     void setServerName(const std::string &n);
     void setRoot(const std::string &r);
-    void setClientMaxBodySize(size_t size);
+    void setClientMaxBodySize(long long size);
 
     void addLocation(const Location &loc);
     void addErrorPage(int code, const std::string &file);
@@ -55,10 +55,12 @@ public:
     int getPort() const;
     const std::string &getServerName() const;
     const std::string &getRoot() const;
-    size_t getClientMaxBodySize() const;
+    long long getClientMaxBodySize() const;
 
     const std::vector<Location> &getLocations() const;
     const std::vector<std::pair<int, std::string> > &getErrorPages() const;
+
+    const Location *findLocation(const std::string &path) const;
 };
 
 #endif

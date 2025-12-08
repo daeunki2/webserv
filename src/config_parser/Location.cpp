@@ -61,7 +61,7 @@ void Location::addMethod(const std::string &m) { _methods.push_back(m); }
 void Location::setIndex(const std::string &idx) { _index = idx; }
 void Location::setAutoindex(bool e) { _autoindex = e; }
 void Location::setUploadPath(const std::string &p) { _uploadPath = p; }
-void Location::setClientMaxBodySize(size_t size)
+void Location::setClientMaxBodySize(long long size)
 {
     _clientMaxBodySize = size;
     _hasClientMaxBodySize = true;
@@ -100,7 +100,7 @@ bool Location::hasClientMaxBodySize() const
     return _hasClientMaxBodySize;
 }
 
-size_t Location::getClientMaxBodySize() const
+long long Location::getClientMaxBodySize() const
 {
     return _clientMaxBodySize;
 }

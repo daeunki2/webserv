@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/03 17:00:29 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 17:33:41 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -127,7 +127,7 @@ RequestParser::feed(const char* data, size_t len)
             if (st != PARSING_IN_PROGRESS)
                 return st;
 
-            if (_state == HEADERS)
+            if (_state == HEADERS || _state == BODY)
                 return PARSING_IN_PROGRESS;
         }
         else if (_state == BODY)
@@ -206,8 +206,13 @@ RequestParser::ParsingState
 RequestParser::parse_request_line()
 {
     std::string line;
-    if (!extract_line(line))
-        return PARSING_IN_PROGRESS;
+    while (true)
+    {
+        if (!extract_line(line))
+            return PARSING_IN_PROGRESS;
+        if (!line.empty())
+            break;
+    }
 
     std::vector<std::string> tok;
     std::string tmp;
@@ -230,9 +235,9 @@ RequestParser::parse_request_line()
 		return PARSING_ERROR;
 	}
 
-    _request.set_method(tok[0]);
-    _request.set_uri(tok[1]);
-    _request.set_version(tok[2]);
+    _request.set_method(trim(tok[0]));
+    _request.set_uri(trim(tok[1]));
+    _request.set_version(trim(tok[2]));
 
     _state = HEADERS;
     return PARSING_IN_PROGRESS;
@@ -528,9 +533,14 @@ const http_request& RequestParser::getRequest() const
 
 void RequestParser::set_max_body_size(long long max)
 {
-	_max_body_size = max;
-	_max_body_configured = true;
+    if (max <= 0)
+        _max_body_size = LLONG_MAX;
+    else
+        _max_body_size = max;
+
+    _max_body_configured = true;
 }
+
 
 bool RequestParser::isMaxBodyConfigured() const
 {

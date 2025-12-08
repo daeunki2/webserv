@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/29 17:41:51 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/02 20:27:05 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 17:56:13 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -26,6 +26,7 @@ char *ft_strdup(const char *str);
 
 bool isNumber(const std::string &s);
 int toInt(const std::string &s);
+long long toLLong(const std::string &s);
 std::string toString(int n);
 
 #endif

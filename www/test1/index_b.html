@@ -177,7 +177,8 @@ const translations = {
         desc: "Serveur de test bleu – Page de démonstration Webserv.",
         deleteLabel: "DELETE chemin (ex: /upload/test.txt)",
         postLabel: "Upload fichier → POST /upload",
-        baguetteLabel: "Euro → Baguette"
+        baguetteLabel: "Euros disponibles",
+        priceLabel: "Prix d'une baguette (€)"
     },
     en: {
         title: "Blue Server",
@@ -185,7 +186,8 @@ const translations = {
         desc: "Blue test server – Webserv demo page.",
         deleteLabel: "DELETE path (ex: /upload/test.txt)",
         postLabel: "Upload file → POST /upload",
-        baguetteLabel: "Euro → Baguette"
+        baguetteLabel: "Euros you have",
+        priceLabel: "Baguette price (€)"
     },
     kr: {
         title: "푸른 서버",
@@ -193,7 +195,8 @@ const translations = {
         desc: "푸른 서버 – Webserv 테스트 페이지.",
         deleteLabel: "삭제할 경로 (예: /upload/test.txt)",
         postLabel: "업로드 파일 → POST /upload",
-        baguetteLabel: "유로 → 바게트"
+        baguetteLabel: "보유 유로",
+        priceLabel: "바게트 가격 (€)"
     }
 };
 
@@ -209,10 +212,12 @@ function changeLang(lang) {
     const deleteInput = document.getElementById("delete-label");
     const postLabel = document.getElementById("post-label");
     const baguette = document.getElementById("baguette-label");
+    const priceLabel = document.getElementById("baguette-price-label");
 
     if (deleteInput) deleteInput.innerText = t.deleteLabel;
     if (postLabel) postLabel.innerText = t.postLabel;
     if (baguette) baguette.innerText = t.baguetteLabel;
+    if (priceLabel) priceLabel.innerText = t.priceLabel;
 }
 
 
@@ -321,8 +326,10 @@ function sendCGI() {
         </div>
 
         <div class="input-box">
-            <label id="baguette-label">Euro → Baguette</label>
+            <label id="baguette-label">Euros you have</label>
             <input type="text" id="baguette-input" placeholder="3">
+            <label id="baguette-price-label">Baguette price (€)</label>
+            <input type="text" id="baguette-price-input" placeholder="1.10">
             <button class="method-btn" onclick="runBaguetteCGI()">Convert</button>
         </div>
     `;
@@ -330,22 +337,23 @@ function sendCGI() {
 
 function runBaguetteCGI() {
     const v = document.getElementById("baguette-input").value;
+    const price = document.getElementById("baguette-price-input").value || "1.1";
     
     // Get language from localStorage
     const lang = localStorage.getItem("lang") || "fr"; // Default to French if not set
 
-    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}`)
+    fetch(`/cgi-bin/baguette.py?euro=${encodeURIComponent(v)}&price=${encodeURIComponent(price)}`)
         .then(res => res.text())
         .then(t => {
             const count = t.trim();
 
             let resultText;
             if (lang === "fr") {
-                resultText = `Vous pouvez acheter <b>${count} baguettes</b> avec <b>${v} euros</b> 🥖`;
+                resultText = `Vous pouvez acheter <b>${count} baguettes</b> avec <b>${v} euros</b> (prix ${price} €) 🥖`;
             } else if (lang === "en") {
-                resultText = `You can buy <b>${count} baguettes</b> with <b>${v} euros</b> 🥖`;
+                resultText = `You can buy <b>${count} baguettes</b> with <b>${v} euros</b> (price ${price} €) 🥖`;
             } else {
-                resultText = `당신의 <b>${v}유로</b>로  <b>${count}개</b>의 바게트를 구매할 수 있습니다 🥖`;
+                resultText = `당신의 <b>${v}유로</b>로  <b>${count}개</b>의 바게트를 구매할 수 있습니다 (가격 ${price}유로) 🥖`;
             }
 
             document.getElementById("response-display").innerHTML = `

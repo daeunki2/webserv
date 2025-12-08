@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/01 18:37:46 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/08 10:30:04 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/08 13:24:54 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,13 +18,11 @@ bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path
     if (!loc || !loc->hasCgi())
         return false;
 
-    // --- 1) query string 제거 ---
     std::string clean = path;
     size_t q = clean.find('?');
     if (q != std::string::npos)
         clean = clean.substr(0, q);
 
-    // --- 2) 확장자 추출 ---
     size_t dot = clean.rfind('.');
     if (dot == std::string::npos)
         return false;
@@ -34,7 +32,6 @@ bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path
     if (ext != loc->getCgiExtension())
         return false;
 
-    // --- 3) 실제 파일 존재하는지 확인 ---
     std::string fsPath = applyRoot(loc, clean);
     struct stat st;
 

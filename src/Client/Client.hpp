@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/05 12:28:23 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 12:34:27 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/08 13:23:31 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -71,8 +71,7 @@ class Client
 		std::string output;
 
 		CgiState()
-		: active(false), stdin_fd(-1), stdout_fd(-1), pid(-1),
-		  body_sent(0), stdin_closed(false), stdout_closed(false), output()
+		: active(false), stdin_fd(-1), stdout_fd(-1), pid(-1), body_sent(0), stdin_closed(false), stdout_closed(false), output()
 		{}
 	};
 
@@ -122,9 +121,7 @@ class Client
 	bool                start_cgi_process(const Location* loc, const std::string& script_path);
 
 private:
-	char**              buildCgiEnv(const std::string& abs_script,
-	                                const std::string& script_path,
-	                                const Location* loc) const;
+	char**              buildCgiEnv(const std::string& abs_script,const std::string& script_path, const Location* loc) const;
 	void                freeEnv(char **env) const;
 	void                reset_cgi_state();
 	void                send_simple_error_response(int status);

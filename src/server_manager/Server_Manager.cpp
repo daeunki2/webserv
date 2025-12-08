@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/05 22:00:38 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/08 13:25:52 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -86,8 +86,7 @@ void Server_Manager::init_sockets()
         if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
         {
             close(fd);
-            throw Error("setsockopt(SO_REUSEADDR) failed: " + std::string(strerror(errno)),
-                        __FILE__, __LINE__);
+            throw Error("setsockopt(SO_REUSEADDR) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
         }
 
         set_fd_non_blocking(fd);
@@ -330,7 +329,7 @@ void Server_Manager::accept_new_client(int server_fd)
 
         add_poll_fd(client_fd, POLLIN);
 
-      Logger::info(Logger::TAG_EVENT, "Accepted new client FD " + toString(client_fd));
+		Logger::info(Logger::TAG_EVENT, "Accepted new client FD " + toString(client_fd));
 	}
 }
 
@@ -366,50 +365,6 @@ bool Server_Manager::receive_request(int fd)
 
     return false;
 }
-
-// bool Server_Manager::send_response(int client_fd)
-// {
-//     Client &client = _clients[client_fd];
-//     const std::string &buf = client.get_response_buffer();
-//     size_t &sent = client.get_sent_bytes();
-
-//     size_t total = buf.size();
-//     if (sent >= total)
-//     {
-//         client.update_state(Client::CONNECTION_CLOSE);
-//         close_connection(client_fd);
-//         return true;
-//     }
-
-//     ssize_t bytes_sent = send(client_fd, buf.c_str() + sent, total - sent, 0);
-
-//     if (bytes_sent < 0)
-//     {
-// 		Logger::error(Logger::TAG_FD, "send() failed for fd " + toString(client_fd));
-//         close_connection(client_fd);
-//         return true;
-//     }
-
-//     sent += bytes_sent;
-
-// 	if (sent >= total)
-// 	{
-// 	    Logger::info(Logger::TAG_EVENT, "send response to fd " + toString(client_fd));
-//     	if (client.get_request().keep_alive())
-//     	{
-//         	client.reset();
-//         	update_poll_events(client_fd, POLLIN);
-//         	client.update_state(Client::RECVING_REQUEST);
-//     	}
-//     	else
-//     	{
-//         	client.update_state(Client::CONNECTION_CLOSE);
-//         	close_connection(client_fd);
-//     	}
-// 		return true;
-// 	}
-//     return false;
-// }
 
 bool Server_Manager::send_response(int client_fd)
 {

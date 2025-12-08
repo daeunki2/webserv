@@ -409,21 +409,35 @@ std::string Response_Builder::handleGet(const Location *loc)
 
     if (S_ISDIR(st.st_mode))
     {
-        if (!reqPath.empty() && reqPath[reqPath.size() - 1] != '/')
-            return buildRedirectResponse(301, reqPath + "/");
+        bool autoindexEnabled = (loc && loc->getAutoindex());
+        bool needsSlash = (!reqPath.empty() && reqPath[reqPath.size() - 1] != '/');
+        bool hasIndexFile = false;
+        std::string idxPath;
 
         if (loc && !loc->getIndex().empty())
         {
-            std::string idxPath = fsPath;
+            idxPath = fsPath;
             if (idxPath[idxPath.size() - 1] != '/')
                 idxPath += "/";
             idxPath += loc->getIndex();
 
-            if (stat(idxPath.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-                return buildFileResponse(idxPath, 200);
+            struct stat idxStat;
+            if (stat(idxPath.c_str(), &idxStat) == 0 && S_ISREG(idxStat.st_mode))
+                hasIndexFile = true;
         }
 
-        if (loc && loc->getAutoindex())
+        if (needsSlash)
+        {
+            // Redirect only if the directory could actually be served
+            if (hasIndexFile || autoindexEnabled)
+                return buildRedirectResponse(301, reqPath + "/");
+            return buildErrorResponse(404, "Not Found");
+        }
+
+        if (hasIndexFile)
+            return buildFileResponse(idxPath, 200);
+
+        if (autoindexEnabled)
             return buildAutoindexResponse(fsPath, reqPath);
 
         return buildErrorResponse(404, "Not Found");

@@ -35,15 +35,8 @@ bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path
     std::string fsPath = applyRoot(loc, clean);
     struct stat st;
 
-    if (stat(fsPath.c_str(), &st) != 0)
-    {
+    if (stat(fsPath.c_str(), &st) == 0 && S_ISDIR(st.st_mode))
         return false;
-    }
-
-    if (!S_ISREG(st.st_mode))
-    {
-        return false;
-    }
 
     return true;
 }

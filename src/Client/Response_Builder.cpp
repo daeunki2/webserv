@@ -56,25 +56,10 @@ std::string Response_Builder::resolveRootPath(const Location *loc) const
     if (root.empty())
         root = ".";
 
-    if (isAbsolutePath(root))
-        return trimTrailingSlashes(root);
-
-    char cwd[PATH_MAX];
-    if (getcwd(cwd, sizeof(cwd)) == NULL)
-        return trimTrailingSlashes(root);
-
-    std::string full = std::string(cwd);
-    if (!full.empty() && full[full.size() - 1] == '/')
-        full.erase(full.size() - 1);
-
-    if (!root.empty())
-    {
-        if (root[0] != '/')
-            full += "/";
-        full += root;
-    }
-
-    return trimTrailingSlashes(full);
+    std::string trimmed = trimTrailingSlashes(root);
+    if (trimmed.empty())
+        trimmed = ".";
+    return trimmed;
 }
 
 /* ************************************************************************** */

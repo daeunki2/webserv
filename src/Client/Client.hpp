@@ -13,9 +13,9 @@
 #ifndef CLIENT_HPP
 #define CLIENT_HPP
 
+#include <cstddef>
 #include <string>
 #include <vector>
-#include <ctime>        // time_t
 #include <sys/socket.h>
 #include <sys/types.h>
 
@@ -79,12 +79,12 @@ class Client
 	CgiState        _cgi;
 
 	public:
-	time_t          last_active_time;
+	size_t          last_activity_tick;
 
 	public:
 	// ---------------- Canonical Form ----------------
 	Client();
-	Client(int fd, Server* server);
+	Client(int fd, Server* server, const std::string &remote_addr, const std::string &remote_port);
 	Client(const Client& other);
 	Client& operator=(const Client& other);
 	~Client();
@@ -127,9 +127,11 @@ private:
 	void                reset_cgi_state();
 	void                send_simple_error_response(int status);
 	void                apply_location_body_limit();
-	bool                get_peer_info(std::string &addr, std::string &port) const;
 	std::string         resolve_document_root(const Location* loc) const;
 	void                append_http_headers_to_env(std::vector<std::string> &env, const http_request &req) const;
+
+	std::string         _remote_addr;
+	std::string         _remote_port;
 
 };
 

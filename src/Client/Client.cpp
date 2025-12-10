@@ -25,20 +25,18 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
-#include <limits.h>
-#include <netdb.h>
 
 /* ************************************************************************** */
 /*                         Canonical form                                      */
 /* ************************************************************************** */
 
 Client::Client()
-: _fd(-1), _server(0), _parser(), _state(RECVING_REQUEST), _response_buffer(), _sent_bytes(0), _error_code(0), _keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_active_time(time(NULL))
+: _fd(-1), _server(0), _parser(), _state(RECVING_REQUEST), _response_buffer(), _sent_bytes(0), _error_code(0), _keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_activity_tick(0), _remote_addr(), _remote_port()
 {
 }
 
-Client::Client(int fd, Server* server)
-: _fd(fd), _server(server),_parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_active_time(time(NULL))
+Client::Client(int fd, Server* server, const std::string &remote_addr, const std::string &remote_port)
+: _fd(fd), _server(server),_parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_activity_tick(0), _remote_addr(remote_addr), _remote_port(remote_port)
 {
     if (_server)
     {
@@ -71,7 +69,9 @@ Client &Client::operator=(const Client &o)
 	_default_body_limit = o._default_body_limit;
 	_location_limit_applied = o._location_limit_applied;
 	_cgi             = CgiState();
-		last_active_time = o.last_active_time;
+		last_activity_tick = o.last_activity_tick;
+		_remote_addr    = o._remote_addr;
+		_remote_port    = o._remote_port;
 	}
 	return *this;
 }
@@ -124,26 +124,6 @@ void Client::apply_location_body_limit()
 	_location_limit_applied = true;
 }
 
-bool Client::get_peer_info(std::string &addr, std::string &port) const
-{
-	struct sockaddr_storage ss;
-	std::memset(&ss, 0, sizeof(ss));
-	socklen_t len = sizeof(ss);
-	if (getpeername(_fd, reinterpret_cast<struct sockaddr*>(&ss), &len) != 0)
-		return false;
-
-	char hostbuf[NI_MAXHOST];
-	char servbuf[NI_MAXSERV];
-	if (getnameinfo(reinterpret_cast<struct sockaddr*>(&ss), len,
-		hostbuf, sizeof(hostbuf), servbuf, sizeof(servbuf),
-		NI_NUMERICHOST | NI_NUMERICSERV) != 0)
-		return false;
-
-	addr = hostbuf;
-	port = servbuf;
-	return true;
-}
-
 static std::string trim_trailing_slash(const std::string &path)
 {
 	if (path.size() <= 1)
@@ -165,25 +145,7 @@ std::string Client::resolve_document_root(const Location* loc) const
 	if (root.empty())
 		root = ".";
 
-	if (!root.empty() && root[0] == '/')
-		return trim_trailing_slash(root);
-
-	char cwd[PATH_MAX];
-	if (getcwd(cwd, sizeof(cwd)) == NULL)
-		return trim_trailing_slash(root);
-
-	std::string full = std::string(cwd);
-	if (!full.empty() && full[full.size() - 1] == '/')
-		full.erase(full.size() - 1);
-
-	if (!root.empty())
-	{
-		if (root[0] != '/')
-			full += "/";
-		full += root;
-	}
-
-	return trim_trailing_slash(full);
+	return trim_trailing_slash(root);
 }
 
 void Client::append_http_headers_to_env(std::vector<std::string> &env, const http_request &req) const
@@ -266,13 +228,10 @@ char **Client::buildCgiEnv(const std::string& abs_script,
 	std::string documentRoot = resolve_document_root(loc);
 	entries.push_back("DOCUMENT_ROOT=" + documentRoot);
 
-	std::string remoteAddr;
-	std::string remotePort;
-	if (get_peer_info(remoteAddr, remotePort))
-	{
-		entries.push_back("REMOTE_ADDR=" + remoteAddr);
-		entries.push_back("REMOTE_PORT=" + remotePort);
-	}
+	if (!_remote_addr.empty())
+		entries.push_back("REMOTE_ADDR=" + _remote_addr);
+	if (!_remote_port.empty())
+		entries.push_back("REMOTE_PORT=" + _remote_port);
 
 	append_http_headers_to_env(entries, req);
 
@@ -314,13 +273,6 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 	}
 	std::string script_arg = abs_script;
 	std::string cgiExecPath = loc->getCgiPath();
-	if (!cgiExecPath.empty() && cgiExecPath[0] != '/')
-	{
-		char cwd_exec[PATH_MAX];
-		if (getcwd(cwd_exec, sizeof(cwd_exec)) == NULL)
-			return false;
-		cgiExecPath = std::string(cwd_exec) + "/" + cgiExecPath;
-	}
 
 	int stdin_pipe[2];
 	int stdout_pipe[2];
@@ -353,7 +305,7 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		{
 			const char msg[] = "chdir failed\n";
 			write(2, msg, sizeof(msg) - 1);
-			_exit(1);
+			kill(getpid(), SIGKILL);
 		}
 		if (dup2(stdin_pipe[0], STDIN_FILENO) < 0 ||
 			dup2(stdout_pipe[1], STDOUT_FILENO) < 0)
@@ -594,7 +546,7 @@ void Client::reset()
     _sent_bytes = 0;
 
     _state = RECVING_REQUEST;
-    last_active_time = time(NULL);
+    last_activity_tick = 0;
 }
 
 /* ************************************************************************** */
@@ -604,8 +556,6 @@ void Client::reset()
 Client::ParsingState
 Client::handle_recv_data(const char* data, size_t size)
 {
-    last_active_time = time(NULL);
-
     RequestParser::ParsingState st = _parser.feed(data, size);
 	apply_location_body_limit();
 

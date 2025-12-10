@@ -11,6 +11,7 @@
 /* ************************************************************************** */
 
 #include "Server_Manager.hpp"
+#include <stdint.h>
 /* ************************************************************************** */
 /*                           Canonical form                                   */
 /* ************************************************************************** */
@@ -26,16 +27,17 @@ void signal_handler(int)
 /* ************************************************************************** */
 
 Server_Manager::Server_Manager()
+: _tick_counter(0)
 {}
 
 Server_Manager::Server_Manager(const std::vector<Server> &servers)
-: _servers(servers)
+: _servers(servers), _tick_counter(0)
 {
     init_sockets();
 }
 
 Server_Manager::Server_Manager(const Server_Manager &o)
-: _servers(o._servers), _listening_fds(o._listening_fds), _fd_to_server(o._fd_to_server), _clients(o._clients), _poll_fds(o._poll_fds)
+: _servers(o._servers), _listening_fds(o._listening_fds), _fd_to_server(o._fd_to_server), _clients(o._clients), _poll_fds(o._poll_fds), _tick_counter(o._tick_counter)
 {}
 
 Server_Manager &Server_Manager::operator=(const Server_Manager &o)
@@ -47,6 +49,7 @@ Server_Manager &Server_Manager::operator=(const Server_Manager &o)
         _fd_to_server  = o._fd_to_server;
         _clients       = o._clients;
         _poll_fds      = o._poll_fds;
+        _tick_counter  = o._tick_counter;
     }
     return *this;
 }
@@ -296,14 +299,12 @@ void Server_Manager::close_connection(int client_fd)
 
 void Server_Manager::check_idle_clients()
 {
-    time_t now = time(NULL);
-
     for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); )
     {
         int fd = it->first;
-        time_t last = it->second.last_active_time;
+        size_t last = it->second.last_activity_tick;
 
-        if (now - last > IDLE_TIMEOUT_SECONDS)
+        if (_tick_counter >= last && _tick_counter - last >= IDLE_TIMEOUT_TICKS)
         {
             Logger::warn(Logger::TAG_TIMEOUT, "Client FD " + toString(fd) + " idle timeout.");
             ++it;
@@ -316,6 +317,19 @@ void Server_Manager::check_idle_clients()
     }
 }
 
+
+static std::string ipv4_to_string(uint32_t host_ip)
+{
+    std::string addr;
+    addr += toString((host_ip >> 24) & 0xFF);
+    addr += ".";
+    addr += toString((host_ip >> 16) & 0xFF);
+    addr += ".";
+    addr += toString((host_ip >> 8) & 0xFF);
+    addr += ".";
+    addr += toString(host_ip & 0xFF);
+    return addr;
+}
 
 void Server_Manager::accept_new_client(int server_fd)
 {
@@ -347,8 +361,18 @@ void Server_Manager::accept_new_client(int server_fd)
             continue;
         }
 
-        Client c(client_fd, config);
-        c.last_active_time = time(NULL);
+        std::string remoteAddr;
+        std::string remotePort;
+        if (client_addr.ss_family == AF_INET)
+        {
+            struct sockaddr_in *sin = reinterpret_cast<struct sockaddr_in*>(&client_addr);
+            uint32_t ip_host = ntohl(sin->sin_addr.s_addr);
+            remoteAddr = ipv4_to_string(ip_host);
+            remotePort = toString(ntohs(sin->sin_port));
+        }
+
+        Client c(client_fd, config, remoteAddr, remotePort);
+        c.last_activity_tick = _tick_counter;
         _clients.insert(std::make_pair(client_fd, c));
 
         add_poll_fd(client_fd, POLLIN);
@@ -377,7 +401,7 @@ bool Server_Manager::receive_request(int fd)
         return true;
     }
 
-    client.last_active_time = time(NULL);
+    client.last_activity_tick = _tick_counter;
 
     Client::ParsingState st = client.handle_recv_data(buf, n);
 
@@ -425,6 +449,7 @@ bool Server_Manager::send_response(int client_fd)
         if (keep)
         {
             client.reset();
+            client.last_activity_tick = _tick_counter;
             update_poll_events(client_fd, POLLIN);
             client.update_state(Client::RECVING_REQUEST);
             return true;
@@ -453,6 +478,7 @@ bool Server_Manager::send_response(int client_fd)
         if (keep)
         {
             client.reset();
+            client.last_activity_tick = _tick_counter;
             update_poll_events(client_fd, POLLIN);
             client.update_state(Client::RECVING_REQUEST);
         }
@@ -479,7 +505,6 @@ void Server_Manager::run()
 
 	while (g_running)
 	{
-		check_idle_clients();
 		if (_poll_fds.empty())
 		{
 			Logger::error(Logger::TAG_POLL,"No poll fds left. Exiting loop.");
@@ -501,8 +526,13 @@ void Server_Manager::run()
 		break;
 		}
 
+		++_tick_counter;
+
         if (ret == 0)
+		{
+			check_idle_clients();
             continue;
+		}
 
         for (size_t i = 0; i < _poll_fds.size(); ++i)
         {
@@ -575,5 +605,6 @@ void Server_Manager::run()
             if (closed && i > 0)
                 --i;
         }
+		check_idle_clients();
     }
 }

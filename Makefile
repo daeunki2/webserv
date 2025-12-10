@@ -6,9 +6,10 @@
 #    By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2025/10/23 19:31:22 by daeunki2          #+#    #+#              #
-#    Updated: 2025/12/02 20:15:39 by daeunki2         ###   ########.fr        #
+#    Updated: 2025/12/10 11:22:44 by daeunki2         ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
+
 
 NAME = webserv
 CC = c++
@@ -60,6 +61,9 @@ fclean: clean
 	@echo "Cleaning Executable 🧹"
 	@rm -f $(NAME)
 	@echo "fclean ✅"
+
+
+
 
 re: fclean all
 

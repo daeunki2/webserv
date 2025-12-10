@@ -19,11 +19,14 @@
 #include <cstring>
 #include <cerrno>
 #include <vector>
+#include <cctype>
+#include <map>
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <limits.h>
+#include <netdb.h>
 
 /* ************************************************************************** */
 /*                         Canonical form                                      */
@@ -121,36 +124,162 @@ void Client::apply_location_body_limit()
 	_location_limit_applied = true;
 }
 
+bool Client::get_peer_info(std::string &addr, std::string &port) const
+{
+	struct sockaddr_storage ss;
+	std::memset(&ss, 0, sizeof(ss));
+	socklen_t len = sizeof(ss);
+	if (getpeername(_fd, reinterpret_cast<struct sockaddr*>(&ss), &len) != 0)
+		return false;
+
+	char hostbuf[NI_MAXHOST];
+	char servbuf[NI_MAXSERV];
+	if (getnameinfo(reinterpret_cast<struct sockaddr*>(&ss), len,
+		hostbuf, sizeof(hostbuf), servbuf, sizeof(servbuf),
+		NI_NUMERICHOST | NI_NUMERICSERV) != 0)
+		return false;
+
+	addr = hostbuf;
+	port = servbuf;
+	return true;
+}
+
+static std::string trim_trailing_slash(const std::string &path)
+{
+	if (path.size() <= 1)
+		return path;
+	size_t end = path.size();
+	while (end > 1 && path[end - 1] == '/')
+		--end;
+	return path.substr(0, end);
+}
+
+std::string Client::resolve_document_root(const Location* loc) const
+{
+	std::string root;
+	if (loc && !loc->getRoot().empty())
+		root = loc->getRoot();
+	else if (_server)
+		root = _server->getRoot();
+
+	if (root.empty())
+		root = ".";
+
+	if (!root.empty() && root[0] == '/')
+		return trim_trailing_slash(root);
+
+	char cwd[PATH_MAX];
+	if (getcwd(cwd, sizeof(cwd)) == NULL)
+		return trim_trailing_slash(root);
+
+	std::string full = std::string(cwd);
+	if (!full.empty() && full[full.size() - 1] == '/')
+		full.erase(full.size() - 1);
+
+	if (!root.empty())
+	{
+		if (root[0] != '/')
+			full += "/";
+		full += root;
+	}
+
+	return trim_trailing_slash(full);
+}
+
+void Client::append_http_headers_to_env(std::vector<std::string> &env, const http_request &req) const
+{
+	const std::map<std::string, std::string> &headers = req.get_headers();
+
+	for (std::map<std::string, std::string>::const_iterator it = headers.begin(); it != headers.end(); ++it)
+	{
+		const std::string &key = it->first;
+		if (key == "content-length" || key == "content-type")
+			continue;
+
+		std::string formatted;
+		for (size_t i = 0; i < key.size(); ++i)
+		{
+			char c = key[i];
+			if (c == '-')
+				formatted.push_back('_');
+			else
+				formatted.push_back(static_cast<char>(std::toupper(static_cast<unsigned char>(c))));
+		}
+
+		env.push_back("HTTP_" + formatted + "=" + it->second);
+	}
+}
+
 char **Client::buildCgiEnv(const std::string& abs_script,
 	const std::string& script_path,
 	const Location* loc) const
 {
-	(void)loc;
 	const http_request &req = _parser.getRequest();
-	char **env = new char*[40];
-	int i = 0;
+	std::vector<std::string> entries;
+	entries.reserve(48);
 
-	env[i++] = ft_strdup(("REQUEST_METHOD=" + req.get_method()).c_str());
-	env[i++] = ft_strdup(("QUERY_STRING=" + req.get_query()).c_str());
-	env[i++] = ft_strdup(("SCRIPT_FILENAME=" + abs_script).c_str());
-	env[i++] = ft_strdup(("PATH_TRANSLATED=" + abs_script).c_str());
-	env[i++] = ft_strdup(("PATH_INFO=" + script_path).c_str());
+	std::string scriptName = script_path.empty() ? req.get_path() : script_path;
+	if (scriptName.empty())
+		scriptName = "/";
+
+	entries.push_back("REQUEST_METHOD=" + req.get_method());
+	entries.push_back("QUERY_STRING=" + req.get_query());
+	entries.push_back("SCRIPT_FILENAME=" + abs_script);
+	entries.push_back("PATH_TRANSLATED=" + abs_script);
+	entries.push_back("PATH_INFO=" + scriptName);
+	entries.push_back("SCRIPT_NAME=" + scriptName);
+	entries.push_back("REQUEST_URI=" + req.get_uri());
 
 	long long contentLen = req.has_content_length()
 		? req.get_content_length()
 		: static_cast<long long>(req.get_body().size());
-	env[i++] = ft_strdup(("CONTENT_LENGTH=" + toString(contentLen)).c_str());
-	env[i++] = ft_strdup(("CONTENT_TYPE=" + req.get_header("Content-Type")).c_str());
+	entries.push_back("CONTENT_LENGTH=" + toString(contentLen));
 
-	env[i++] = ft_strdup("SERVER_PROTOCOL=HTTP/1.1");
-	env[i++] = ft_strdup("GATEWAY_INTERFACE=CGI/1.1");
-	env[i++] = ft_strdup("REDIRECT_STATUS=200");
+	std::string contentType = req.get_header("Content-Type");
+	if (!contentType.empty())
+		entries.push_back("CONTENT_TYPE=" + contentType);
 
-	const std::string &secret = req.get_header("X-Secret-Header-For-Test");
-	if (!secret.empty())
-		env[i++] = ft_strdup(("HTTP_X_SECRET_HEADER_FOR_TEST=" + secret).c_str());
+	std::string protocol = req.get_version().empty() ? "HTTP/1.1" : req.get_version();
+	entries.push_back("SERVER_PROTOCOL=" + protocol);
+	entries.push_back("GATEWAY_INTERFACE=CGI/1.1");
+	entries.push_back("REDIRECT_STATUS=200");
+	entries.push_back("SERVER_SOFTWARE=webserv/1.0");
+	entries.push_back("REQUEST_SCHEME=http");
 
-	env[i] = NULL;
+	std::string serverName;
+	if (_server && !_server->getServerName().empty())
+		serverName = _server->getServerName();
+	else
+	{
+		serverName = req.get_header("Host");
+		size_t colon = serverName.find(':');
+		if (colon != std::string::npos)
+			serverName = serverName.substr(0, colon);
+	}
+	if (serverName.empty())
+		serverName = "localhost";
+	entries.push_back("SERVER_NAME=" + serverName);
+
+	std::string serverPort = (_server ? toString(_server->getPort()) : "0");
+	entries.push_back("SERVER_PORT=" + serverPort);
+
+	std::string documentRoot = resolve_document_root(loc);
+	entries.push_back("DOCUMENT_ROOT=" + documentRoot);
+
+	std::string remoteAddr;
+	std::string remotePort;
+	if (get_peer_info(remoteAddr, remotePort))
+	{
+		entries.push_back("REMOTE_ADDR=" + remoteAddr);
+		entries.push_back("REMOTE_PORT=" + remotePort);
+	}
+
+	append_http_headers_to_env(entries, req);
+
+	char **env = new char*[entries.size() + 1];
+	for (size_t i = 0; i < entries.size(); ++i)
+		env[i] = ft_strdup(entries[i].c_str());
+	env[entries.size()] = NULL;
 	return env;
 }
 
@@ -239,7 +368,7 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		close(stdout_pipe[0]);
 		close(stdout_pipe[1]);
 
-		char **envp = buildCgiEnv(abs_script, abs_script, loc);
+		char **envp = buildCgiEnv(abs_script, _parser.getRequest().get_path(), loc);
 
 		char *argv[3];
 		argv[0] = const_cast<char*>(cgiExecPath.c_str());

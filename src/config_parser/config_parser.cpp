@@ -12,6 +12,58 @@
 
 #include "config_parser.hpp"
 #include "Utils.hpp"
+#include <cerrno>
+#include <climits>
+#include <cstdlib>
+
+static long long parse_body_size_value(const std::string &token)
+{
+    errno = 0;
+    char *end = NULL;
+    long long value = std::strtoll(token.c_str(), &end, 10);
+    if (*token.c_str() == '\0' || end == token.c_str() || *end != '\0' || errno == ERANGE || value < 0)
+        throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
+    return value;
+}
+
+static void split_listen_target(const std::string &token, std::string &hostOut, std::string &portOut)
+{
+    std::string value = trim(token);
+    if (value.empty())
+        throw Error("Invalid listen directive", __FILE__, __LINE__);
+
+    if (value[0] == '[')
+    {
+        size_t closing = value.find(']');
+        if (closing == std::string::npos || closing + 1 >= value.size() || value[closing + 1] != ':')
+            throw Error("Invalid listen directive", __FILE__, __LINE__);
+        hostOut = value.substr(1, closing - 1);
+        portOut = value.substr(closing + 2);
+    }
+    else
+    {
+        size_t colon = value.find(':');
+        if (colon == std::string::npos)
+        {
+            hostOut.clear();
+            portOut = value;
+        }
+        else
+        {
+            hostOut = value.substr(0, colon);
+            portOut = value.substr(colon + 1);
+        }
+    }
+
+    hostOut = trim(hostOut);
+    portOut = trim(portOut);
+
+    if (portOut.empty())
+        throw Error("Invalid listen directive", __FILE__, __LINE__);
+
+    if (hostOut == "*" || hostOut == "0.0.0.0")
+        hostOut.clear();
+}
 
 ConfigParser::ConfigParser() : _i(0)
 {}
@@ -175,9 +227,13 @@ void ConfigParser::parseServerBlock()
             next();
             std::string p = next();
             expect(";");
-            if (!isNumber(p))
-                throw Error("Invalid port: " + p, __FILE__, __LINE__);
-            s.setPort(toInt(p));
+            std::string host;
+            std::string portStr;
+            split_listen_target(p, host, portStr);
+            if (!isNumber(portStr))
+                throw Error("Invalid port: " + portStr, __FILE__, __LINE__);
+            s.setPort(toInt(portStr));
+            s.setHost(host);
         }
         else if (t == "server_name")
         {
@@ -196,10 +252,7 @@ void ConfigParser::parseServerBlock()
             next();
             std::string size = next();
             expect(";");
-            if (!isNumber(size))
-                throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
-            
-			long long v =toLLong(size);
+			long long v = parse_body_size_value(size);
 			if (v == 0)
 				v = -1;
 			s.setClientMaxBodySize(v);
@@ -299,9 +352,7 @@ void ConfigParser::parseLocationBlock(Server &srv)
 			next();
 			std::string size = next();
 			expect(";");
-			if (!isNumber(size))
-				throw Error("Invalid client_max_body_size", __FILE__, __LINE__);
-			long long v = toLLong(size);
+			long long v = parse_body_size_value(size);
 			if (v == 0)
 				v = -1;    // -1 = unlimited
 			loc.setClientMaxBodySize(v);

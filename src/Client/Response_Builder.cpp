@@ -32,6 +32,51 @@ Response_Builder::Response_Builder(Server *server, const http_request &req, Clie
 Response_Builder::~Response_Builder()
 {}
 
+bool Response_Builder::isAbsolutePath(const std::string &path)
+{
+    return (!path.empty() && path[0] == '/');
+}
+
+std::string Response_Builder::trimTrailingSlashes(const std::string &path)
+{
+    if (path.size() <= 1)
+        return path;
+    size_t end = path.size();
+    while (end > 1 && path[end - 1] == '/')
+        --end;
+    return path.substr(0, end);
+}
+
+std::string Response_Builder::resolveRootPath(const Location *loc) const
+{
+    std::string root = (loc && !loc->getRoot().empty())
+                        ? loc->getRoot()
+                        : _server->getRoot();
+
+    if (root.empty())
+        root = ".";
+
+    if (isAbsolutePath(root))
+        return trimTrailingSlashes(root);
+
+    char cwd[PATH_MAX];
+    if (getcwd(cwd, sizeof(cwd)) == NULL)
+        return trimTrailingSlashes(root);
+
+    std::string full = std::string(cwd);
+    if (!full.empty() && full[full.size() - 1] == '/')
+        full.erase(full.size() - 1);
+
+    if (!root.empty())
+    {
+        if (root[0] != '/')
+            full += "/";
+        full += root;
+    }
+
+    return trimTrailingSlashes(full);
+}
+
 /* ************************************************************************** */
 /*                               Helpers                                      */
 /* ************************************************************************** */
@@ -100,35 +145,26 @@ std::string Response_Builder::getMimeType(const std::string &path) const
 
 std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
 {
-    // root 구함
-    std::string root = (loc && !loc->getRoot().empty())
-                        ? loc->getRoot()
-                        : _server->getRoot();
+    std::string base = resolveRootPath(loc);
 
-    // location prefix 제거
     std::string url = path;
     if (loc)
     {
-        const std::string& lp = loc->getPath(); // "/directory/"
-        if (path.compare(0, lp.size(), lp) == 0)
-            url = path.substr(lp.size());        // "youpi.bla"
+        const std::string& lp = loc->getPath();
+        if (!lp.empty() && path.compare(0, lp.size(), lp) == 0)
+            url = path.substr(lp.size());
     }
 
-    // url 앞 '/' 제거
     if (!url.empty() && url[0] == '/')
         url.erase(0, 1);
 
-    // ----- 절대경로로 변환 -----
-    char cwd[PATH_MAX];
-    getcwd(cwd, sizeof(cwd));
+    if (url.empty())
+        return base;
 
-    std::string full = std::string(cwd) + "/" + root;
+    if (base == "/")
+        return "/" + url;
 
-    // root 끝 '/' 제거
-    if (!full.empty() && full[full.size()-1] == '/')
-        full.erase(full.size()-1);
-
-    return full + "/" + url;
+    return base + "/" + url;
 }
 
 // std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const

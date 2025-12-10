@@ -29,6 +29,7 @@
 # include <ctime>
 # include <netinet/in.h>
 # include <sys/socket.h>
+# include <netdb.h>
 #include <signal.h>
 
 # include "Server.hpp"

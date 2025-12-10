@@ -47,6 +47,21 @@ static bool parse_decimal_ll(const std::string& s, long long& out)
 	return true;
 }
 
+static bool is_valid_http_method(const std::string& method)
+{
+	return (
+		method == "GET" ||
+		method == "POST" ||
+		method == "DELETE" ||
+		method == "HEAD"
+	);
+}
+
+static bool is_valid_http_version(const std::string& version)
+{
+	return (version == "HTTP/1.1" || version == "HTTP/1.0");
+}
+
 // -----------------------------------------------------------
 // canonical
 // -----------------------------------------------------------
@@ -238,6 +253,28 @@ RequestParser::parse_request_line()
     _request.set_method(trim(tok[0]));
     _request.set_uri(trim(tok[1]));
     _request.set_version(trim(tok[2]));
+
+	const std::string &method = _request.get_method();
+	const std::string &version = _request.get_version();
+
+	if (!is_valid_http_method(method))
+	{
+		_state = ERROR;
+		_error_code = 501;
+		return PARSING_ERROR;
+	}
+	if (!is_valid_http_version(version))
+	{
+		_state = ERROR;
+		_error_code = 505;
+		return PARSING_ERROR;
+	}
+	if (_request.get_uri().empty())
+	{
+		_state = ERROR;
+		_error_code = 400;
+		return PARSING_ERROR;
+	}
 
     _state = HEADERS;
     return PARSING_IN_PROGRESS;

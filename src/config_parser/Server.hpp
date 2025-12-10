@@ -24,6 +24,7 @@
 class Server
 {
 private:
+    std::string _host;
     int _port;
     std::string _serverName;
     std::string _root;
@@ -44,6 +45,7 @@ public:
 
     /* Setters */
     void setPort(int p);
+    void setHost(const std::string &h);
     void setServerName(const std::string &n);
     void setRoot(const std::string &r);
     void setClientMaxBodySize(long long size);
@@ -52,6 +54,7 @@ public:
     void addErrorPage(int code, const std::string &file);
 
     /* Getters */
+    const std::string &getHost() const;
     int getPort() const;
     const std::string &getServerName() const;
     const std::string &getRoot() const;

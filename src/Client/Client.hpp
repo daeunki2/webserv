@@ -14,6 +14,7 @@
 #define CLIENT_HPP
 
 #include <string>
+#include <vector>
 #include <ctime>        // time_t
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -126,6 +127,9 @@ private:
 	void                reset_cgi_state();
 	void                send_simple_error_response(int status);
 	void                apply_location_body_limit();
+	bool                get_peer_info(std::string &addr, std::string &port) const;
+	std::string         resolve_document_root(const Location* loc) const;
+	void                append_http_headers_to_env(std::vector<std::string> &env, const http_request &req) const;
 
 };
 

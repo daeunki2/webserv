@@ -47,8 +47,11 @@ private:
     std::string buildSimpleResponse(int status, const std::string &body);
     std::string buildErrorResponse(int status, const std::string &msg);
     std::string buildRedirectResponse(int status, const std::string &url);
-    std::string buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath);
+	std::string buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath);
     std::string buildFileResponse(const std::string &fsPath, int status);
+	std::string resolveRootPath(const Location *loc) const;
+	static bool isAbsolutePath(const std::string &path);
+	static std::string trimTrailingSlashes(const std::string &path);
 	/* Method handlers */
 	std::string handleGet(const Location *loc);
 	std::string handlePost(const Location *loc, const std::string &path);

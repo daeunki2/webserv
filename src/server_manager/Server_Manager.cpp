@@ -93,9 +93,31 @@ void Server_Manager::init_sockets()
 
         struct sockaddr_in addr;
         std::memset(&addr, 0, sizeof(addr));
-        addr.sin_family      = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port        = htons(_servers[i].getPort());
+        addr.sin_family = AF_INET;
+        addr.sin_port   = htons(_servers[i].getPort());
+
+        const std::string &host = _servers[i].getHost();
+        if (host.empty())
+        {
+            addr.sin_addr.s_addr = htonl(INADDR_ANY);
+        }
+        else
+        {
+            struct addrinfo hints;
+            std::memset(&hints, 0, sizeof(hints));
+            hints.ai_family = AF_INET;
+            hints.ai_socktype = SOCK_STREAM;
+
+            struct addrinfo *result = NULL;
+            int gai_ret = getaddrinfo(host.c_str(), NULL, &hints, &result);
+            if (gai_ret != 0 || !result)
+            {
+                close(fd);
+                throw Error("getaddrinfo failed for host " + host + ": " + std::string(gai_strerror(gai_ret)), __FILE__, __LINE__);
+            }
+            addr.sin_addr = reinterpret_cast<struct sockaddr_in*>(result->ai_addr)->sin_addr;
+            freeaddrinfo(result);
+        }
 
         if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         {
@@ -116,7 +138,9 @@ void Server_Manager::init_sockets()
 
         add_poll_fd(fd, POLLIN);
 
-        Logger::info(Logger::TAG_EVENT, "Listening on port " + toString(_servers[i].getPort()));    }
+        std::string hostDesc = host.empty() ? std::string("*") : host;
+        Logger::info(Logger::TAG_EVENT, "Listening on " + hostDesc + ":" + toString(_servers[i].getPort()));
+    }
 }
 
 /* ************************************************************************** */

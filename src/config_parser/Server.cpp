@@ -15,7 +15,7 @@
 /* Canonical */
 
 Server::Server()
-: _port(0), _serverName(""), _root(""),_clientMaxBodySize(0), _hasCgi(false)
+: _host(""), _port(0), _serverName(""), _root(""),_clientMaxBodySize(0), _hasCgi(false)
 {}
 
 Server::Server(const Server &o)
@@ -27,6 +27,7 @@ Server &Server::operator=(const Server &o)
 {
     if (this != &o)
     {
+        _host = o._host;
         _port = o._port;
         _serverName = o._serverName;
         _root = o._root;
@@ -43,6 +44,7 @@ Server::~Server() {}
 /* Setters */
 
 void Server::setPort(int p) { _port = p; }
+void Server::setHost(const std::string &h) { _host = h; }
 void Server::setServerName(const std::string &n) { _serverName = n; }
 void Server::setRoot(const std::string &r) { _root = r; }
 void Server::setClientMaxBodySize(long long size) { _clientMaxBodySize = size; }
@@ -56,6 +58,7 @@ void Server::addErrorPage(int code, const std::string &file)
 
 /* Getters */
 
+const std::string &Server::getHost() const { return _host; }
 int Server::getPort() const { return _port; }
 const std::string &Server::getServerName() const { return _serverName; }
 const std::string &Server::getRoot() const { return _root; }

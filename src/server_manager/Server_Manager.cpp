@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/08 13:25:52 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 16:05:53 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -448,10 +448,7 @@ bool Server_Manager::send_response(int client_fd)
                 statusCode = statusLine.substr(sp1 + 1);
         }
         const http_request &req = client.get_request();
-        Logger::info(Logger::TAG_EVENT,
-            "Responding FD " + toString(client_fd) +
-            " status " + statusCode +
-            " ← " + req.get_method() + " " + req.get_path());
+        Logger::info(Logger::TAG_EVENT, "Responding FD " + toString(client_fd) + " status " + statusCode + " ← " + req.get_method() + " " + req.get_path());
     }
 
     if (sent >= total)
@@ -567,7 +564,7 @@ void Server_Manager::run()
             if (is_listening_fd(fd))
             {
                 if (pfd.revents & POLLIN)
-                    accept_new_client(fd);
+					accept_new_client(fd);
                 continue;
             }
 
@@ -591,20 +588,19 @@ void Server_Manager::run()
                 {
                     Client &client = it->second;
 
-                    if (client.get_state() == Client::REQUEST_COMPLETE ||
-                        client.get_state() == Client::ERROR)
+                    if (client.get_state() == Client::REQUEST_COMPLETE || client.get_state() == Client::ERROR)
                     {
-			client.build_response();
-			Client::ClientState state = client.get_state();
-			if (state == Client::SENDING_RESPONSE)
-			{
-				update_poll_events(fd, POLLOUT);
-			}
-			else if (state == Client::CGI_SENDING_BODY || state == Client::CGI_READING_OUTPUT)
-			{
-				update_poll_events(fd, 0);
-				register_cgi_fds(client);
-			}
+						client.build_response();
+						Client::ClientState state = client.get_state();
+							if (state == Client::SENDING_RESPONSE)
+							{
+								update_poll_events(fd, POLLOUT);
+							}
+							else if (state == Client::CGI_SENDING_BODY || state == Client::CGI_READING_OUTPUT)
+							{
+								update_poll_events(fd, 0);
+								register_cgi_fds(client);
+							}
                     }
                 }
             }

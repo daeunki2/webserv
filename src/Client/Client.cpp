@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/04 12:34:57 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 16:15:44 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -476,8 +476,7 @@ void Client::finalize_cgi_response()
 	_sent_bytes = 0;
 	_keep_alive = _parser.getRequest().keep_alive();
 	_state = SENDING_RESPONSE;
-	Logger::info(Logger::TAG_CGI, "CGI finished for FD " + toString(_fd) +
-		" body=" + toString(_cgi.output.size()) + " bytes");
+	Logger::info(Logger::TAG_CGI, "CGI finished for FD " + toString(_fd) + " body=" + toString(_cgi.output.size()) + " bytes");
 }
 
 void Client::handle_cgi_completion()
@@ -593,8 +592,7 @@ Client::handle_recv_data(const char* data, size_t size)
 
     if (st == RequestParser::PARSING_ERROR)
     {
-        Logger::warn(Logger::TAG_REQ, "Parsing error on FD " + toString(_fd) +
-            " code=" + toString(_parser.get_error_code()));
+        Logger::warn(Logger::TAG_REQ, "Parsing error on FD " + toString(_fd) + " code=" + toString(_parser.get_error_code()));
         _error_code = _parser.get_error_code();
         _state = Client::ERROR;
         _keep_alive = false;

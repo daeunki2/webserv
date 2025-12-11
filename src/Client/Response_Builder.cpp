@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/05 21:09:46 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 16:18:50 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -49,9 +49,7 @@ std::string Response_Builder::trimTrailingSlashes(const std::string &path)
 
 std::string Response_Builder::resolveRootPath(const Location *loc) const
 {
-    std::string root = (loc && !loc->getRoot().empty())
-                        ? loc->getRoot()
-                        : _server->getRoot();
+    std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
 
     if (root.empty())
         root = ".";
@@ -114,16 +112,24 @@ bool Response_Builder::isMethodAllowed(const Location *loc) const
 std::string Response_Builder::getMimeType(const std::string &path) const
 {
     std::string::size_type pos = path.rfind('.');
-    if (pos == std::string::npos) return "application/octet-stream";
+    if (pos == std::string::npos)
+		return "application/octet-stream";
 
     std::string ext = path.substr(pos + 1);
-    if (ext == "html" || ext == "htm") return "text/html";
-    if (ext == "css") return "text/css";
-    if (ext == "js") return "application/javascript";
-    if (ext == "png") return "image/png";
-    if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
-    if (ext == "gif") return "image/gif";
-    if (ext == "txt") return "text/plain";
+    if (ext == "html" || ext == "htm")
+		return "text/html";
+    if (ext == "css")
+		return "text/css";
+    if (ext == "js")
+		return "application/javascript";
+    if (ext == "png")
+		return "image/png";
+    if (ext == "jpg" || ext == "jpeg")
+		return "image/jpeg";
+    if (ext == "gif")
+		return "image/gif";
+    if (ext == "txt")
+		return "text/plain";
 
     return "application/octet-stream";
 }
@@ -151,25 +157,6 @@ std::string Response_Builder::applyRoot(const Location *loc, const std::string &
 
     return base + "/" + url;
 }
-
-// std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
-// {
-//     std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
-
-//     std::string url = path;
-
-//     if (loc && path.compare(0, loc->getPath().size(), loc->getPath()) == 0)
-//         url = path.substr(loc->getPath().size());
-
-//     if (!root.empty() && root[root.size() - 1] == '/')
-//         root.erase(root.size() - 1);
-
-//     if (url.empty() || url[0] != '/')
-//         url = "/" + url;
-
-//     return root + url;
-// }
-
 
 std::string Response_Builder::findErrorPage(int status) const
 {
@@ -449,7 +436,6 @@ std::string Response_Builder::handleGet(const Location *loc)
 
         if (needsSlash)
         {
-            // Redirect only if the directory could actually be served
             if (hasIndexFile || autoindexEnabled)
                 return buildRedirectResponse(301, reqPath + "/");
             return buildErrorResponse(404, "Not Found");
@@ -500,11 +486,9 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
     {
         if (err == "500")
         {
-//            Logger::warn("Multipart upload failed (server error)");
             return buildErrorResponse(500, "Upload failed");
         }
 
-//        Logger::warn("Malformed multipart request");
         return buildErrorResponse(400, "Malformed multipart body");
     }
 
@@ -540,38 +524,31 @@ std::string Response_Builder::build()
         " build response for " + method + " " + path
     );
 
-    // ---------------- parse error ----------------
     if (_client->get_error_code() != 0)
     {
         Logger::warn(Logger::TAG_REQ, "Returning parse error " +
             toString(_client->get_error_code()) + " for FD " + toString(_client->get_fd()));
-        return buildErrorResponse(_client->get_error_code(),
-                                  statusMessage(_client->get_error_code()));
+        return buildErrorResponse(_client->get_error_code(), statusMessage(_client->get_error_code()));
     }
 
-    // ---------------- location ----------------
     const Location *loc = (_server ? _server->findLocation(path) : NULL);
     if (loc)
         Logger::info(Logger::TAG_REQ, "Matched location: " + loc->getPath());
     else
         Logger::info(Logger::TAG_REQ, "Matched location: <none>");
 
-    // ---------------- method check ----------------
     if (!isMethodAllowed(loc))
     {
         Logger::warn(Logger::TAG_REQ, "Method not allowed: " + method + " " + path);
         return buildErrorResponse(405, "Method Not Allowed");
     }
 
-    // ---------------- redirect ----------------
     if (loc && loc->isRedirect())
     {
         Logger::info(Logger::TAG_REQ, "Redirecting " + path + " -> " + loc->getRedirectUrl());
-        return buildRedirectResponse(loc->getRedirectCode(),
-                                     loc->getRedirectUrl());
+        return buildRedirectResponse(loc->getRedirectCode(), loc->getRedirectUrl());
     }
 
-    // ---------------- body limit ----------------
     if (method == "POST" && loc && loc->hasClientMaxBodySize())
     {
         long long limit = loc->getClientMaxBodySize();
@@ -583,9 +560,6 @@ std::string Response_Builder::build()
         }
     }
 
-    // ============================================================
-    //                     ★ CGI 조건 검사 ★
-    // ============================================================
     bool isCgi = isCgiRequest(loc, path);
 
     if (isCgi)
@@ -598,13 +572,12 @@ std::string Response_Builder::build()
         return "";
     }
 
-    // ---------------- methods ----------------
     if (method == "HEAD")
     {
         std::string res = handleGet(loc);
         size_t pos = res.find("\r\n\r\n");
         if (pos != std::string::npos)
-            res.erase(pos + 4); // remove body
+            res.erase(pos + 4); 
         return res;
     }
 

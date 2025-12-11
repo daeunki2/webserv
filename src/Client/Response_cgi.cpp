@@ -6,13 +6,14 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/12/01 18:37:46 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/08 13:24:54 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 16:19:53 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Response_Builder.hpp"
 #include "Logger.hpp"
 #include <sys/stat.h>
+
 bool Response_Builder::isCgiRequest(const Location* loc, const std::string& path) const
 {
     if (!loc || !loc->hasCgi())
@@ -49,9 +50,6 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
     std::string headers;
     std::string body;
 
-    // ---------------------------
-    // 헤더 / 바디 분리
-    // ---------------------------
     size_t pos  = cgiOutput.find("\r\n\r\n");
     size_t skip = 4;
 
@@ -68,14 +66,10 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
     }
     else
     {
-        // 헤더가 없는 경우 → 전체가 body
         headers.clear();
         body = cgiOutput;
     }
 
-    // ---------------------------
-    // CGI 헤더 파싱
-    // ---------------------------
     std::string status = "200 OK";
     bool hasContentLength = false;
     std::ostringstream forwardHeaders;
@@ -85,7 +79,6 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
 
     while (std::getline(hs, line))
     {
-        // CR 제거
         if (!line.empty() && line[line.size() - 1] == '\r')
             line.erase(line.size() - 1);
 
@@ -109,9 +102,6 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
         }
     }
 
-    // ---------------------------
-    // 최종 HTTP 응답 구성
-    // ---------------------------
     res << "HTTP/1.1 " << status << "\r\n";
     res << forwardHeaders.str();
 
@@ -124,7 +114,6 @@ std::string Response_Builder::buildHttpResponseFromCgi(const std::string& cgiOut
     res << "Connection: " << connection << "\r\n";
     res << "\r\n";
 
-    // body 그대로 붙임
     res << body;
 
     return res.str();

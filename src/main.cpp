@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/24 10:03:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/03 10:48:39 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 14:59:24 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -24,7 +24,7 @@ extern void signal_handler(int);
 
 int main(int argc, char **argv)
 {
-    if (argc != 2)
+    if (argc != 2 && argc != 1)
     {
         Logger::error(Logger::TAG_CORE, "Usage : ./webserv config.txt");
         return 1;
@@ -35,9 +35,15 @@ int main(int argc, char **argv)
 		signal(SIGTERM, signal_handler);
 
 		signal(SIGPIPE, SIG_IGN);
-
-        std::string configFile = argv[1];
-
+		std::string configFile;
+		if(argc == 2)
+		{
+			configFile = argv[1];
+		}
+		else
+		{
+			configFile = "default.txt";
+		}
         ConfigParser parser(configFile);
         const std::vector<Server> &servers = parser.getServers();
 

@@ -51,6 +51,7 @@ class Client
 	private:
     int             _fd;                // clien FD
     Server*         _server;            // server settint
+	int             _listen_port;
 	RequestParser   _parser;            // HTTP parser
 	ClientState     _state;             // state os client
 	std::string     _response_buffer;   // full response "HTTP"
@@ -84,7 +85,7 @@ class Client
 	public:
 	// ---------------- Canonical Form ----------------
 	Client();
-	Client(int fd, Server* server, const std::string &remote_addr, const std::string &remote_port);
+	Client(int fd, Server* server, int listen_port, const std::string &remote_addr, const std::string &remote_port);
 	Client(const Client& other);
 	Client& operator=(const Client& other);
 	~Client();

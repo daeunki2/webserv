@@ -12,6 +12,7 @@
 
 #include "Server_Manager.hpp"
 #include <stdint.h>
+#include <set>
 /* ************************************************************************** */
 /*                           Canonical form                                   */
 /* ************************************************************************** */
@@ -79,70 +80,79 @@ void Server_Manager::init_sockets()
 {
     Logger::info(Logger::TAG_CORE, "Initializing listening sockets...");
 
+	std::set<std::string> used_targets;
     for (size_t i = 0; i < _servers.size(); ++i)
     {
-        int fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (fd < 0)
-            throw Error("socket() failed: " + std::string(strerror(errno)),__FILE__, __LINE__);
+		const std::vector<Server::ListenTarget> &targets = _servers[i].getListenTargets();
+		for (size_t j = 0; j < targets.size(); ++j)
+		{
+			std::string hostDesc = targets[j].host.empty() ? std::string("*") : targets[j].host;
+			std::string key = hostDesc + ":" + toString(targets[j].port);
+			if (used_targets.find(key) != used_targets.end())
+				throw Error("Duplicate global listen target " + key, __FILE__, __LINE__);
 
-        int optval = 1;
-        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
-        {
-            close(fd);
-            throw Error("setsockopt(SO_REUSEADDR) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
-        }
+			int fd = socket(AF_INET, SOCK_STREAM, 0);
+			if (fd < 0)
+				throw Error("socket() failed: " + std::string(strerror(errno)),__FILE__, __LINE__);
 
-        set_fd_non_blocking(fd);
+			int optval = 1;
+			if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+			{
+				close(fd);
+				throw Error("setsockopt(SO_REUSEADDR) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
+			}
 
-        struct sockaddr_in addr;
-        std::memset(&addr, 0, sizeof(addr));
-        addr.sin_family = AF_INET;
-        addr.sin_port   = htons(_servers[i].getPort());
+			set_fd_non_blocking(fd);
 
-        const std::string &host = _servers[i].getHost();
-        if (host.empty())
-        {
-            addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        }
-        else
-        {
-            struct addrinfo hints;
-            std::memset(&hints, 0, sizeof(hints));
-            hints.ai_family = AF_INET;
-            hints.ai_socktype = SOCK_STREAM;
+			struct sockaddr_in addr;
+			std::memset(&addr, 0, sizeof(addr));
+			addr.sin_family = AF_INET;
+			addr.sin_port   = htons(targets[j].port);
 
-            struct addrinfo *result = NULL;
-            int gai_ret = getaddrinfo(host.c_str(), NULL, &hints, &result);
-            if (gai_ret != 0 || !result)
-            {
-                close(fd);
-                throw Error("getaddrinfo failed for host " + host + ": " + std::string(gai_strerror(gai_ret)), __FILE__, __LINE__);
-            }
-            addr.sin_addr = reinterpret_cast<struct sockaddr_in*>(result->ai_addr)->sin_addr;
-            freeaddrinfo(result);
-        }
+			if (targets[j].host.empty())
+			{
+				addr.sin_addr.s_addr = htonl(INADDR_ANY);
+			}
+			else
+			{
+				struct addrinfo hints;
+				std::memset(&hints, 0, sizeof(hints));
+				hints.ai_family = AF_INET;
+				hints.ai_socktype = SOCK_STREAM;
 
-        if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-        {
-            std::string msg = "bind() failed on port " + toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
-            close(fd);
-            throw Error(msg, __FILE__, __LINE__);
-        }
+				struct addrinfo *result = NULL;
+				int gai_ret = getaddrinfo(targets[j].host.c_str(), NULL, &hints, &result);
+				if (gai_ret != 0 || !result)
+				{
+					close(fd);
+					throw Error("getaddrinfo failed for host " + targets[j].host + ": " + std::string(gai_strerror(gai_ret)), __FILE__, __LINE__);
+				}
+				addr.sin_addr = reinterpret_cast<struct sockaddr_in*>(result->ai_addr)->sin_addr;
+				freeaddrinfo(result);
+			}
 
-        if (listen(fd, SOMAXCONN) < 0)
-        {
-            std::string msg = "listen() failed on port " + toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
-            close(fd);
-            throw Error(msg, __FILE__, __LINE__);
-        }
+			if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+			{
+				std::string msg = "bind() failed on port " + toString(targets[j].port) + ": " + std::string(strerror(errno));
+				close(fd);
+				throw Error(msg, __FILE__, __LINE__);
+			}
 
-        _listening_fds.push_back(fd);
-        _fd_to_server[fd] = &_servers[i];
+			if (listen(fd, SOMAXCONN) < 0)
+			{
+				std::string msg = "listen() failed on port " + toString(targets[j].port) + ": " + std::string(strerror(errno));
+				close(fd);
+				throw Error(msg, __FILE__, __LINE__);
+			}
 
-        add_poll_fd(fd, POLLIN);
+			_listening_fds.push_back(fd);
+			_fd_to_server[fd] = ListenSocketInfo(&_servers[i], targets[j].host, targets[j].port);
 
-        std::string hostDesc = host.empty() ? std::string("*") : host;
-        Logger::info(Logger::TAG_EVENT, "Listening on " + hostDesc + ":" + toString(_servers[i].getPort()));
+			add_poll_fd(fd, POLLIN);
+
+			used_targets.insert(key);
+			Logger::info(Logger::TAG_EVENT, "Listening on " + hostDesc + ":" + toString(targets[j].port));
+		}
     }
 }
 
@@ -157,12 +167,12 @@ bool Server_Manager::is_listening_fd(int fd) const
     return (it != _listening_fds.end());
 }
 
-Server *Server_Manager::get_server_by_fd(int fd)
+const Server_Manager::ListenSocketInfo *Server_Manager::get_listen_info(int fd) const
 {
-    std::map<int, Server*>::iterator it = _fd_to_server.find(fd);
+    std::map<int, ListenSocketInfo>::const_iterator it = _fd_to_server.find(fd);
     if (it == _fd_to_server.end())
         return 0;
-    return it->second;
+    return &it->second;
 }
 
 void Server_Manager::update_poll_events(int fd, short events)
@@ -353,13 +363,14 @@ void Server_Manager::accept_new_client(int server_fd)
 
         set_fd_non_blocking(client_fd);
 
-        Server *config = get_server_by_fd(server_fd);
-        if (!config)
+        const ListenSocketInfo *info = get_listen_info(server_fd);
+        if (!info || !info->server)
         {
 			Logger::error(Logger::TAG_CONF, "No server config for FD " + toString(server_fd));
 			close(client_fd);
             continue;
         }
+        Server *config = info->server;
 
         std::string remoteAddr;
         std::string remotePort;
@@ -371,7 +382,7 @@ void Server_Manager::accept_new_client(int server_fd)
             remotePort = toString(ntohs(sin->sin_port));
         }
 
-        Client c(client_fd, config, remoteAddr, remotePort);
+        Client c(client_fd, config, info->port, remoteAddr, remotePort);
         c.last_activity_tick = _tick_counter;
         _clients.insert(std::make_pair(client_fd, c));
 

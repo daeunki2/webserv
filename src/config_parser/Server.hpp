@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:01 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 16:48:12 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 15:22:21 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,9 +23,15 @@
 
 class Server
 {
+public:
+	struct ListenTarget
+	{
+		std::string host;
+		int         port;
+	};
+
 private:
-    std::string _host;
-    int _port;
+	std::vector<ListenTarget> _listenTargets;
     std::string _serverName;
     std::string _root;
     long long _clientMaxBodySize;
@@ -44,22 +50,19 @@ public:
     ~Server();
 
     /* Setters */
-    void setPort(int p);
-    void setHost(const std::string &h);
     void setServerName(const std::string &n);
     void setRoot(const std::string &r);
     void setClientMaxBodySize(long long size);
-
+	void addListenTarget(const std::string &host, int port);
     void addLocation(const Location &loc);
     void addErrorPage(int code, const std::string &file);
+	bool hasListenTarget(const std::string &host, int port) const;
 
     /* Getters */
-    const std::string &getHost() const;
-    int getPort() const;
     const std::string &getServerName() const;
     const std::string &getRoot() const;
     long long getClientMaxBodySize() const;
-
+	const std::vector<ListenTarget> &getListenTargets() const;
     const std::vector<Location> &getLocations() const;
     const std::vector<std::pair<int, std::string> > &getErrorPages() const;
 

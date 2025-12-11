@@ -26,17 +26,49 @@
 #include <signal.h>
 #include <sys/wait.h>
 
+static size_t local_strlen(const char *s)
+{
+	size_t len = 0;
+
+	if (!s)
+		return 0;
+	while (s[len] != '\0')
+		++len;
+	return len;
+}
+
+static void terminate_cgi_child(const char *msg)
+{
+	if (msg)
+	{
+		size_t len = local_strlen(msg);
+		if (len > 0)
+			(void)write(2, msg, len);
+	}
+	(void)signal(SIGPIPE, SIG_DFL);
+	int suicide_pipe[2];
+	if (pipe(suicide_pipe) == 0)
+	{
+		close(suicide_pipe[0]);
+		const char dummy = '\0';
+		(void)write(suicide_pipe[1], &dummy, 1);
+		close(suicide_pipe[1]);
+	}
+	while (true)
+		;
+}
+
 /* ************************************************************************** */
 /*                         Canonical form                                      */
 /* ************************************************************************** */
 
 Client::Client()
-: _fd(-1), _server(0), _parser(), _state(RECVING_REQUEST), _response_buffer(), _sent_bytes(0), _error_code(0), _keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_activity_tick(0), _remote_addr(), _remote_port()
+: _fd(-1), _server(0), _listen_port(0), _parser(), _state(RECVING_REQUEST), _response_buffer(), _sent_bytes(0), _error_code(0), _keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_activity_tick(0), _remote_addr(), _remote_port()
 {
 }
 
-Client::Client(int fd, Server* server, const std::string &remote_addr, const std::string &remote_port)
-: _fd(fd), _server(server),_parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_activity_tick(0), _remote_addr(remote_addr), _remote_port(remote_port)
+Client::Client(int fd, Server* server, int listen_port, const std::string &remote_addr, const std::string &remote_port)
+: _fd(fd), _server(server), _listen_port(listen_port), _parser(),_state(RECVING_REQUEST),_response_buffer(),_sent_bytes(0),_error_code(0),_keep_alive(false), _default_body_limit(0), _location_limit_applied(false), _cgi(), last_activity_tick(0), _remote_addr(remote_addr), _remote_port(remote_port)
 {
     if (_server)
     {
@@ -60,6 +92,7 @@ Client &Client::operator=(const Client &o)
 	{
 		_fd              = o._fd;
 		_server          = o._server;
+		_listen_port     = o._listen_port;
 		_parser          = o._parser;
 		_state           = o._state;
 	_response_buffer = o._response_buffer;
@@ -222,7 +255,7 @@ char **Client::buildCgiEnv(const std::string& abs_script,
 		serverName = "localhost";
 	entries.push_back("SERVER_NAME=" + serverName);
 
-	std::string serverPort = (_server ? toString(_server->getPort()) : "0");
+	std::string serverPort = toString(_listen_port);
 	entries.push_back("SERVER_PORT=" + serverPort);
 
 	std::string documentRoot = resolve_document_root(loc);
@@ -302,18 +335,10 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 	if (pid == 0)
 	{
 		if (chdir(script_dir.c_str()) < 0)
-		{
-			const char msg[] = "chdir failed\n";
-			write(2, msg, sizeof(msg) - 1);
-			kill(getpid(), SIGKILL);
-		}
+			terminate_cgi_child("chdir failed\n");
 		if (dup2(stdin_pipe[0], STDIN_FILENO) < 0 ||
 			dup2(stdout_pipe[1], STDOUT_FILENO) < 0)
-		{
-			const char msg[] = "dup2 failed\n";
-			write(2, msg, sizeof(msg) - 1);
-			kill(getpid(), SIGKILL);
-		}
+			terminate_cgi_child("dup2 failed\n");
 
 		close(stdin_pipe[0]);
 		close(stdin_pipe[1]);
@@ -330,9 +355,7 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		execve(cgiExecPath.c_str(), argv, envp);
 
 		freeEnv(envp);
-		const char msg[] = "execve failed\n";
-		write(2, msg, sizeof(msg) - 1);
-		kill(getpid(), SIGKILL);
+		terminate_cgi_child("execve failed\n");
 	}
 
 	close(stdin_pipe[0]);

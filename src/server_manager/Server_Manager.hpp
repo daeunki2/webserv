@@ -65,7 +65,16 @@ class Server_Manager
 private:
     std::vector<Server>				_servers;
 	std::vector<int>				_listening_fds;
-	std::map<int, Server*>			_fd_to_server;		// listen fd -> Server*
+	struct ListenSocketInfo
+	{
+		Server*     server;
+		std::string host;
+		int         port;
+		ListenSocketInfo() : server(0), host(), port(0) {}
+		ListenSocketInfo(Server *s, const std::string &h, int p)
+		: server(s), host(h), port(p) {}
+	};
+	std::map<int, ListenSocketInfo>			_fd_to_server;		// listen fd -> info
 	std::map<int, Client>			_clients;			// client fd -> Client
 	std::vector<struct pollfd>		_poll_fds;
 	struct CgiFdInfo
@@ -96,7 +105,7 @@ private:
 
 	/* utile */
 	bool   is_listening_fd(int fd) const;
-	Server *get_server_by_fd(int fd);
+	const ListenSocketInfo *get_listen_info(int fd) const;
 	void   update_poll_events(int fd, short events);
 	void   register_cgi_fds(Client &client);
 	void   unregister_cgi_fd(int fd);

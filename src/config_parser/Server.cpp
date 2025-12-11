@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:08 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/01 18:20:51 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 15:25:04 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,7 +15,7 @@
 /* Canonical */
 
 Server::Server()
-: _host(""), _port(0), _serverName(""), _root(""),_clientMaxBodySize(0), _hasCgi(false)
+: _listenTargets(), _serverName(""), _root(""),_clientMaxBodySize(0), _hasCgi(false)
 {}
 
 Server::Server(const Server &o)
@@ -27,8 +27,7 @@ Server &Server::operator=(const Server &o)
 {
     if (this != &o)
     {
-        _host = o._host;
-        _port = o._port;
+        _listenTargets = o._listenTargets;
         _serverName = o._serverName;
         _root = o._root;
         _clientMaxBodySize = o._clientMaxBodySize;
@@ -43,8 +42,22 @@ Server::~Server() {}
 
 /* Setters */
 
-void Server::setPort(int p) { _port = p; }
-void Server::setHost(const std::string &h) { _host = h; }
+void Server::addListenTarget(const std::string &host, int port)
+{
+	ListenTarget tmp;
+	tmp.host = host;
+	tmp.port = port;
+	_listenTargets.push_back(tmp);
+}
+
+bool Server::hasListenTarget(const std::string &host, int port) const
+{
+	for (size_t i = 0; i < _listenTargets.size(); ++i)
+		if (_listenTargets[i].host == host && _listenTargets[i].port == port)
+			return true;
+	return false;
+}
+
 void Server::setServerName(const std::string &n) { _serverName = n; }
 void Server::setRoot(const std::string &r) { _root = r; }
 void Server::setClientMaxBodySize(long long size) { _clientMaxBodySize = size; }
@@ -58,13 +71,12 @@ void Server::addErrorPage(int code, const std::string &file)
 
 /* Getters */
 
-const std::string &Server::getHost() const { return _host; }
-int Server::getPort() const { return _port; }
 const std::string &Server::getServerName() const { return _serverName; }
 const std::string &Server::getRoot() const { return _root; }
 long long Server::getClientMaxBodySize() const { return _clientMaxBodySize; }
 const std::vector<Location> &Server::getLocations() const { return _locations; }
 const std::vector<std::pair<int, std::string> > &Server::getErrorPages() const { return _errorPages; }
+const std::vector<Server::ListenTarget> &Server::getListenTargets() const { return _listenTargets; }
 
 const Location *Server::findLocation(const std::string &path) const
 {

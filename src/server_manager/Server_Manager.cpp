@@ -251,6 +251,9 @@ bool Server_Manager::handle_cgi_poll_event(struct pollfd &pfd)
 	else if (is_stdout && (pfd.revents & (POLLIN | POLLHUP)))
 		ok = client->handle_cgi_stdout_event();
 
+	if (ok)
+		client->last_activity_tick = _tick_counter;
+
 	bool removed = false;
 	if (!ok)
 	{
@@ -313,6 +316,12 @@ void Server_Manager::check_idle_clients()
     {
         int fd = it->first;
         size_t last = it->second.last_activity_tick;
+
+		if (it->second.has_active_cgi())
+		{
+			++it;
+			continue;
+		}
 
         if (_tick_counter >= last && _tick_counter - last >= IDLE_TIMEOUT_TICKS)
         {

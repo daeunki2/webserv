@@ -54,6 +54,7 @@ server {
         index index_b.html;
         autoindex off;
         allowed_methods GET POST;
+        cgi .bla ./cgi_test;
     }
 }
 

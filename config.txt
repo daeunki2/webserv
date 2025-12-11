@@ -1,45 +1,36 @@
-server
-{
-	listen 8080;
-	server_name tester;
+server {
+    listen 0.0.0.0:8080;
+    server_name tester;
+    root ./www/test1;
 
-	location /
-	{
-		root ./www/test1;
-		index index_b.html;
-		allowed_methods GET;
-	}
+    location / {
+        index index_b.html;
+        allowed_methods GET;
+    }
 
-	location /post_body
-	{
-		allowed_methods POST;
-		client_max_body_size 100;
-	}
+    location /post_body {
+        allowed_methods POST;
+        client_max_body_size 100;
+    }
 
-	location /directory
-	{
-		allowed_methods GET;
-		return 301 /directory/;
-	}
+    location /directory {
+        allowed_methods GET;
+        return 301 /directory/;
+    }
 
-	location /directory/ {
-    root ./YoupiBanane;
-    index youpi.bad_extension;
-    autoindex off;
-    allowed_methods GET POST;
-    client_max_body_size 0;
-    cgi .bla ./cgi_test;
+    location /directory/ {
+        root ./YoupiBanane;
+        index youpi.bad_extension;
+        autoindex off;
+        allowed_methods GET POST;
+        client_max_body_size 0;
+        cgi .bla ./cgi_test;
+    }
 }
-
-}
-
-
-
 
 server {
-    listen 8181;
-    server_name dev;
-
+    listen 0.0.0.0:8181;
+    server_name dev1;
     root ./www/test1;
 
     location / {
@@ -49,8 +40,9 @@ server {
 
     location /upload {
         root ./www/test1/upload;
-        autoindex on;
         upload ./www/test1/upload;
+        autoindex on;
+        allowed_methods POST;
     }
 
     location /cgi-bin/ {
@@ -58,14 +50,11 @@ server {
         allowed_methods GET POST;
         cgi .py /usr/bin/python3;
     }
-
 }
 
-  
 server {
-    listen 8282;
-    server_name dev;
-
+    listen 0.0.0.0:8282;
+    server_name dev2;
     root ./www/test2;
 
     location / {
@@ -75,8 +64,9 @@ server {
 
     location /upload {
         root ./www/test2/upload;
-        autoindex on;
         upload ./www/test2/upload;
+        autoindex on;
+        allowed_methods POST;
     }
 
     location /cgi-bin/ {
@@ -84,13 +74,11 @@ server {
         allowed_methods GET POST;
         cgi .py /usr/bin/python3;
     }
-
 }
 
 server {
-    listen 8383;
-    server_name dev;
-
+    listen 0.0.0.0:8383;
+    server_name dev3;
     root ./www/test3;
 
     location / {
@@ -100,8 +88,9 @@ server {
 
     location /upload {
         root ./www/test3/upload;
-        autoindex on;
         upload ./www/test3/upload;
+        autoindex on;
+        allowed_methods POST;
     }
 
     location /cgi-bin/ {
@@ -109,5 +98,4 @@ server {
         allowed_methods GET POST;
         cgi .py /usr/bin/python3;
     }
-
 }

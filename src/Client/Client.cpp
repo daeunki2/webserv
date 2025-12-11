@@ -306,11 +306,32 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 	}
 	std::string script_arg = abs_script;
 	std::string cgiExecPath = loc->getCgiPath();
+	if (cgiExecPath.empty())
+		return false;
+
+	int base_dir_fd = -1;
+	std::string exec_full_path = cgiExecPath;
+	if (!cgiExecPath.empty() && cgiExecPath[0] != '/')
+	{
+		base_dir_fd = open(".", O_RDONLY);
+		if (base_dir_fd < 0)
+			return false;
+		if (fcntl(base_dir_fd, F_SETFD, FD_CLOEXEC) == -1)
+		{
+			close(base_dir_fd);
+			return false;
+		}
+		exec_full_path = "/proc/self/fd/" + toString(base_dir_fd) + "/" + cgiExecPath;
+	}
 
 	int stdin_pipe[2];
 	int stdout_pipe[2];
 	if (pipe(stdin_pipe) < 0 || pipe(stdout_pipe) < 0)
+	{
+		if (base_dir_fd >= 0)
+			close(base_dir_fd);
 		return false;
+	}
 
 	if (fcntl(stdin_pipe[1], F_SETFL, O_NONBLOCK) == -1 ||
 		fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK) == -1)
@@ -319,6 +340,8 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
 		close(stdout_pipe[1]);
+		if (base_dir_fd >= 0)
+			close(base_dir_fd);
 		return false;
 	}
 
@@ -329,16 +352,26 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		close(stdin_pipe[1]);
 		close(stdout_pipe[0]);
 		close(stdout_pipe[1]);
+		if (base_dir_fd >= 0)
+			close(base_dir_fd);
 		return false;
 	}
 
 	if (pid == 0)
 	{
 		if (chdir(script_dir.c_str()) < 0)
+		{
+			if (base_dir_fd >= 0)
+				close(base_dir_fd);
 			terminate_cgi_child("chdir failed\n");
+		}
 		if (dup2(stdin_pipe[0], STDIN_FILENO) < 0 ||
 			dup2(stdout_pipe[1], STDOUT_FILENO) < 0)
+		{
+			if (base_dir_fd >= 0)
+				close(base_dir_fd);
 			terminate_cgi_child("dup2 failed\n");
+		}
 
 		close(stdin_pipe[0]);
 		close(stdin_pipe[1]);
@@ -348,18 +381,22 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		char **envp = buildCgiEnv(abs_script, _parser.getRequest().get_path(), loc);
 
 		char *argv[3];
-		argv[0] = const_cast<char*>(cgiExecPath.c_str());
+		argv[0] = const_cast<char*>(exec_full_path.c_str());
 		argv[1] = const_cast<char*>(script_arg.c_str());
 		argv[2] = NULL;
 
-		execve(cgiExecPath.c_str(), argv, envp);
+		execve(exec_full_path.c_str(), argv, envp);
 
 		freeEnv(envp);
+		if (base_dir_fd >= 0)
+			close(base_dir_fd);
 		terminate_cgi_child("execve failed\n");
 	}
 
 	close(stdin_pipe[0]);
 	close(stdout_pipe[1]);
+	if (base_dir_fd >= 0)
+		close(base_dir_fd);
 
 	_cgi.active = true;
 	_cgi.stdin_fd = stdin_pipe[1];

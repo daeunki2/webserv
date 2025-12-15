@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/11 16:18:50 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/15 09:51:55 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -519,10 +519,7 @@ std::string Response_Builder::build()
     const std::string &path   = _req.get_path();
     size_t body_size          = _req.get_body().size();
 
-    Logger::info(Logger::TAG_REQ,
-        "FD " + toString(_client->get_fd()) +
-        " build response for " + method + " " + path
-    );
+    Logger::info(Logger::TAG_REQ, "FD " + toString(_client->get_fd()) + " build response for " + method + " " + path);
 
     if (_client->get_error_code() != 0)
     {
@@ -568,7 +565,6 @@ std::string Response_Builder::build()
         Logger::info(Logger::TAG_CGI, "Launching CGI for " + method + " " + path);
         if (!_client->start_cgi_process(loc, script_path))
             return buildErrorResponse(500, "CGI start failed");
-
         return "";
     }
 

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/02 15:40:04 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/11 16:15:44 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/15 09:53:52 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -289,13 +289,14 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 	if (!loc)
 		return false;
 
-	abort_cgi();
+	abort_cgi(); //in case a previous CGI is still active
 
 	if (script_path.empty())
 		return false;
 
 	std::string abs_script = script_path;
 	std::string script_dir = ".";
+	std::string script_arg = abs_script;
 	size_t slash = abs_script.rfind('/');
 	if (slash != std::string::npos)
 	{
@@ -303,8 +304,9 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 			script_dir = "/";
 		else
 			script_dir = abs_script.substr(0, slash);
+		if (slash + 1 < abs_script.size())
+			script_arg = abs_script.substr(slash + 1);
 	}
-	std::string script_arg = abs_script;
 	std::string cgiExecPath = loc->getCgiPath();
 	if (cgiExecPath.empty())
 		return false;
@@ -333,8 +335,7 @@ bool Client::start_cgi_process(const Location* loc, const std::string& script_pa
 		return false;
 	}
 
-	if (fcntl(stdin_pipe[1], F_SETFL, O_NONBLOCK) == -1 ||
-		fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK) == -1)
+	if (fcntl(stdin_pipe[1], F_SETFL, O_NONBLOCK) == -1 || fcntl(stdout_pipe[0], F_SETFL, O_NONBLOCK) == -1)
 	{
 		close(stdin_pipe[0]);
 		close(stdin_pipe[1]);

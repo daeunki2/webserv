@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/11 16:05:53 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/15 09:48:37 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -205,8 +205,7 @@ void Server_Manager::init_sockets()
 
 bool Server_Manager::is_listening_fd(int fd) const
 {
-    std::vector<int>::const_iterator it =
-        std::find(_listening_fds.begin(), _listening_fds.end(), fd);
+    std::vector<int>::const_iterator it = std::find(_listening_fds.begin(), _listening_fds.end(), fd);
     return (it != _listening_fds.end());
 }
 

@@ -80,7 +80,7 @@ class Client
 	CgiState        _cgi;
 
 	public:
-	size_t          last_activity_tick;
+	unsigned long long last_activity_tick;
 
 	public:
 	// ---------------- Canonical Form ----------------
@@ -95,6 +95,8 @@ class Client
 	ClientState         get_state() const;
 	const http_request& get_request() const;
 	int 				get_error_code() const;
+	bool                is_sending_response() const;
+	bool                has_pending_response_bytes() const;
 	
 	const std::string&  get_response_buffer() const;
 	size_t              get_response_length() const;

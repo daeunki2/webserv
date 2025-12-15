@@ -13,6 +13,49 @@
 #include "Server_Manager.hpp"
 #include <stdint.h>
 #include <set>
+
+static unsigned long long read_uptime_ms()
+{
+	int fd = open("/proc/uptime", O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	char buf[64];
+	ssize_t n = read(fd, buf, sizeof(buf) - 1);
+	close(fd);
+	if (n <= 0)
+		return 0;
+	buf[n] = '\0';
+
+	unsigned long long seconds = 0;
+	unsigned long long fraction = 0;
+	unsigned long long divisor = 1;
+	bool seen_dot = false;
+
+	for (ssize_t i = 0; i < n; ++i)
+	{
+		char c = buf[i];
+		if (c == '.' && !seen_dot)
+		{
+			seen_dot = true;
+			continue;
+		}
+		if (c < '0' || c > '9')
+			break;
+		if (!seen_dot)
+			seconds = seconds * 10ULL + static_cast<unsigned long long>(c - '0');
+		else
+		{
+			fraction = fraction * 10ULL + static_cast<unsigned long long>(c - '0');
+			divisor *= 10ULL;
+		}
+	}
+
+	unsigned long long result = seconds * 1000ULL;
+	if (divisor > 1)
+		result += (fraction * 1000ULL) / divisor;
+	return result;
+}
 /* ************************************************************************** */
 /*                           Canonical form                                   */
 /* ************************************************************************** */
@@ -28,11 +71,11 @@ void signal_handler(int)
 /* ************************************************************************** */
 
 Server_Manager::Server_Manager()
-: _tick_counter(0)
+: _tick_counter(read_uptime_ms())
 {}
 
 Server_Manager::Server_Manager(const std::vector<Server> &servers)
-: _servers(servers), _tick_counter(0)
+: _servers(servers), _tick_counter(read_uptime_ms())
 {
     init_sockets();
 }
@@ -312,18 +355,24 @@ void Server_Manager::close_connection(int client_fd)
 
 void Server_Manager::check_idle_clients()
 {
+    unsigned long long now = _tick_counter;
     for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); )
     {
         int fd = it->first;
-        size_t last = it->second.last_activity_tick;
+        unsigned long long last = it->second.last_activity_tick;
 
 		if (it->second.has_active_cgi())
 		{
 			++it;
 			continue;
 		}
+		if (it->second.is_sending_response() && it->second.has_pending_response_bytes())
+		{
+			++it;
+			continue;
+		}
 
-        if (_tick_counter >= last && _tick_counter - last >= IDLE_TIMEOUT_TICKS)
+        if (last > 0 && now >= last && now - last >= IDLE_TIMEOUT_MS_VALUE)
         {
             Logger::warn(Logger::TAG_TIMEOUT, "Client FD " + toString(fd) + " idle timeout.");
             ++it;
@@ -488,6 +537,7 @@ bool Server_Manager::send_response(int client_fd)
         return false;
 
     sent += bytes_sent;
+	client.last_activity_tick = _tick_counter;
 
     if (sent >= total)
     {
@@ -527,12 +577,12 @@ void Server_Manager::run()
 			Logger::error(Logger::TAG_POLL,"No poll fds left. Exiting loop.");
 			break;
 		}
-		int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
-		if (ret < 0)
-		{
-			if (errno == EINTR)
+			int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
+			if (ret < 0)
 			{
-				if (!g_running)
+				if (errno == EINTR)
+				{
+					if (!g_running)
 				{
 					Logger::info(Logger::TAG_CORE,"ctrl + c situation. Exiting loop."); 
 					break;
@@ -541,14 +591,16 @@ void Server_Manager::run()
 			}
 			Logger::error(Logger::TAG_POLL,"poll() failed: " + std::string(strerror(errno)));
 		break;
-		}
+			}
 
-		++_tick_counter;
+			unsigned long long now_ms = read_uptime_ms();
+			if (now_ms != 0)
+				_tick_counter = now_ms;
 
-        if (ret == 0)
-		{
-			check_idle_clients();
-            continue;
+	        if (ret == 0)
+			{
+				check_idle_clients();
+	            continue;
 		}
 
         for (size_t i = 0; i < _poll_fds.size(); ++i)

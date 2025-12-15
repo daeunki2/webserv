@@ -578,6 +578,18 @@ int 	Client::get_error_code() const
 	return _error_code;
 }
 
+bool Client::is_sending_response() const
+{
+	return _state == SENDING_RESPONSE;
+}
+
+bool Client::has_pending_response_bytes() const
+{
+	if (_state != SENDING_RESPONSE)
+		return false;
+	return _sent_bytes < _response_buffer.size();
+}
+
 
 
 /* ************************************************************************** */

@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:38 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/12/11 15:12:58 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/15 09:33:59 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -15,18 +15,6 @@
 #include <cerrno>
 #include <climits>
 #include <cstdlib>
-
-
-/*
-Server 구조부터 확장하세요. _host/_port 대신 std::vector<ListenTarget> 같은 컨테이너를 두고, ListenTarget은 {std::string host; int port;} 형태로 만듭니다. setHost/setPort를 쓰는 현재 로직을 addListenTarget(host, port)로 갈아타고, 기존 getter들도 필요하다면 첫 번째 항목을 돌려주거나 새 getter(getListens())를 추가합니다.
-
-config_parser.cpp의 parseServerBlock()에서 listen을 만날 때마다 split_listen_target()으로 host·port를 분리한 뒤 server.addListenTarget(host, toInt(portStr));를 호출하세요. 지금처럼 한 번 읽고 덮어쓰지 말고, 지시어가 반복될 때마다 push 하도록 합니다. listen이 단 한 번도 나오지 않았다면 기본값(예: 0.0.0.0 (line 8080))을 넣어 주는 검사도 추가하세요.
-
-Server_Manager::init_sockets()에서는 for each server 안에서 다시 for each listen target을 돌며 소켓을 열어야 합니다. 즉, _servers[i].getListens()를 순회하면서 socket → setsockopt → fcntl(O_NONBLOCK) → bind → listen을 반복적으로 호출하고, 성공한 FD마다 _listening_fds.push_back(fd)와 _fd_to_server[fd] = & _servers[i];를 수행합니다. host 문자열이 비어 있으면 INADDR_ANY, 아니면 기존처럼 getaddrinfo를 사용하세요.
-
-Server_Manager 다른 부분(리스닝 FD 판별 등)은 _listening_fds만 제대로 채워지면 그대로 동작합니다. 마지막으로, 디폴트 설정 파일이나 기존 config.txt에도 listen이 여러 번 나오는 예시를 추가해서 테스트해 보면 정상적으로 여러 포트를 동시에 열 수 있을 거예요.
-
-*/
 
 static long long parse_body_size_value(const std::string &token)
 {

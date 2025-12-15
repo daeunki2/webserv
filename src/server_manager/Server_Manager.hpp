@@ -49,12 +49,8 @@
 #  define TIMEOUT_MS 1000   // poll timeout 1s
 # endif
 
-# ifndef IDLE_TIMEOUT_TICKS
-#  if TIMEOUT_MS > 0
-#   define IDLE_TIMEOUT_TICKS (((IDLE_TIMEOUT_SECONDS) * 1000 + TIMEOUT_MS - 1) / TIMEOUT_MS)
-#  else
-#   define IDLE_TIMEOUT_TICKS (IDLE_TIMEOUT_SECONDS * 1000)
-#  endif
+# ifndef IDLE_TIMEOUT_MS_VALUE
+#  define IDLE_TIMEOUT_MS_VALUE ((unsigned long long)(IDLE_TIMEOUT_SECONDS) * 1000ULL)
 # endif
 
 extern volatile sig_atomic_t g_running;
@@ -85,7 +81,7 @@ private:
 		CgiFdInfo(Client* c, bool out) : client(c), is_stdout(out) {}
 	};
 	std::map<int, CgiFdInfo>       _cgi_fd_map;
-	size_t                         _tick_counter;
+	unsigned long long             _tick_counter;
 
 public:
 	Server_Manager();

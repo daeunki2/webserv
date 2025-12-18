@@ -6,11 +6,56 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/19 13:40:10 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 16:33:36 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/15 09:48:37 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "Server_Manager.hpp"
+#include <stdint.h>
+#include <set>
+
+static unsigned long long read_uptime_ms()
+{
+	int fd = open("/proc/uptime", O_RDONLY);
+	if (fd < 0)
+		return 0;
+
+	char buf[64];
+	ssize_t n = read(fd, buf, sizeof(buf) - 1);
+	close(fd);
+	if (n <= 0)
+		return 0;
+	buf[n] = '\0';
+
+	unsigned long long seconds = 0;
+	unsigned long long fraction = 0;
+	unsigned long long divisor = 1;
+	bool seen_dot = false;
+
+	for (ssize_t i = 0; i < n; ++i)
+	{
+		char c = buf[i];
+		if (c == '.' && !seen_dot)
+		{
+			seen_dot = true;
+			continue;
+		}
+		if (c < '0' || c > '9')
+			break;
+		if (!seen_dot)
+			seconds = seconds * 10ULL + static_cast<unsigned long long>(c - '0');
+		else
+		{
+			fraction = fraction * 10ULL + static_cast<unsigned long long>(c - '0');
+			divisor *= 10ULL;
+		}
+	}
+
+	unsigned long long result = seconds * 1000ULL;
+	if (divisor > 1)
+		result += (fraction * 1000ULL) / divisor;
+	return result;
+}
 /* ************************************************************************** */
 /*                           Canonical form                                   */
 /* ************************************************************************** */
@@ -26,16 +71,17 @@ void signal_handler(int)
 /* ************************************************************************** */
 
 Server_Manager::Server_Manager()
+: _tick_counter(read_uptime_ms())
 {}
 
 Server_Manager::Server_Manager(const std::vector<Server> &servers)
-: _servers(servers)
+: _servers(servers), _tick_counter(read_uptime_ms())
 {
     init_sockets();
 }
 
 Server_Manager::Server_Manager(const Server_Manager &o)
-: _servers(o._servers), _listening_fds(o._listening_fds), _fd_to_server(o._fd_to_server), _clients(o._clients), _poll_fds(o._poll_fds)
+: _servers(o._servers), _listening_fds(o._listening_fds), _fd_to_server(o._fd_to_server), _clients(o._clients), _poll_fds(o._poll_fds), _tick_counter(o._tick_counter)
 {}
 
 Server_Manager &Server_Manager::operator=(const Server_Manager &o)
@@ -47,6 +93,7 @@ Server_Manager &Server_Manager::operator=(const Server_Manager &o)
         _fd_to_server  = o._fd_to_server;
         _clients       = o._clients;
         _poll_fds      = o._poll_fds;
+        _tick_counter  = o._tick_counter;
     }
     return *this;
 }
@@ -76,52 +123,80 @@ void Server_Manager::init_sockets()
 {
     Logger::info(Logger::TAG_CORE, "Initializing listening sockets...");
 
+	std::set<std::string> used_targets;
     for (size_t i = 0; i < _servers.size(); ++i)
     {
-        int fd = socket(AF_INET, SOCK_STREAM, 0);
-        if (fd < 0)
-            throw Error("socket() failed: " + std::string(strerror(errno)),__FILE__, __LINE__);
+		const std::vector<Server::ListenTarget> &targets = _servers[i].getListenTargets();
+		for (size_t j = 0; j < targets.size(); ++j)
+		{
+			std::string hostDesc = targets[j].host.empty() ? std::string("*") : targets[j].host;
+			std::string key = hostDesc + ":" + toString(targets[j].port);
+			if (used_targets.find(key) != used_targets.end())
+				throw Error("Duplicate global listen target " + key, __FILE__, __LINE__);
 
-        int optval = 1;
-        if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
-        {
-            close(fd);
-            throw Error("setsockopt(SO_REUSEADDR) failed: " + std::string(strerror(errno)),
-                        __FILE__, __LINE__);
-        }
+			int fd = socket(AF_INET, SOCK_STREAM, 0);
+			if (fd < 0)
+				throw Error("socket() failed: " + std::string(strerror(errno)),__FILE__, __LINE__);
 
-        set_fd_non_blocking(fd);
+			int optval = 1;
+			if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)) < 0)
+			{
+				close(fd);
+				throw Error("setsockopt(SO_REUSEADDR) failed: " + std::string(strerror(errno)), __FILE__, __LINE__);
+			}
 
-        struct sockaddr_in addr;
-        std::memset(&addr, 0, sizeof(addr));
-        addr.sin_family      = AF_INET;
-        addr.sin_addr.s_addr = htonl(INADDR_ANY);
-        addr.sin_port        = htons(_servers[i].getPort());
+			set_fd_non_blocking(fd);
 
-        if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-        {
-            std::string msg = "bind() failed on port " + toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
-            close(fd);
-            throw Error(msg, __FILE__, __LINE__);
-        }
+			struct sockaddr_in addr;
+			std::memset(&addr, 0, sizeof(addr));
+			addr.sin_family = AF_INET;
+			addr.sin_port   = htons(targets[j].port);
 
-        if (listen(fd, SOMAXCONN) < 0)
-        {
-            std::string msg = "listen() failed on port " + toString(_servers[i].getPort()) + ": " + std::string(strerror(errno));
-            close(fd);
-            throw Error(msg, __FILE__, __LINE__);
-        }
+			if (targets[j].host.empty())
+			{
+				addr.sin_addr.s_addr = htonl(INADDR_ANY);
+			}
+			else
+			{
+				struct addrinfo hints;
+				std::memset(&hints, 0, sizeof(hints));
+				hints.ai_family = AF_INET;
+				hints.ai_socktype = SOCK_STREAM;
 
-        _listening_fds.push_back(fd);
-        _fd_to_server[fd] = &_servers[i];
+				struct addrinfo *result = NULL;
+				int gai_ret = getaddrinfo(targets[j].host.c_str(), NULL, &hints, &result);
+				if (gai_ret != 0 || !result)
+				{
+					close(fd);
+					throw Error("getaddrinfo failed for host " + targets[j].host + ": " + std::string(gai_strerror(gai_ret)), __FILE__, __LINE__);
+				}
+				addr.sin_addr = reinterpret_cast<struct sockaddr_in*>(result->ai_addr)->sin_addr;
+				freeaddrinfo(result);
+			}
 
-        struct pollfd pfd;
-        pfd.fd      = fd;
-        pfd.events  = POLLIN;
-        pfd.revents = 0;
-        _poll_fds.push_back(pfd);
+			if (bind(fd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
+			{
+				std::string msg = "bind() failed on port " + toString(targets[j].port) + ": " + std::string(strerror(errno));
+				close(fd);
+				throw Error(msg, __FILE__, __LINE__);
+			}
 
-        Logger::info(Logger::TAG_EVENT, "Listening on port " + toString(_servers[i].getPort()));    }
+			if (listen(fd, SOMAXCONN) < 0)
+			{
+				std::string msg = "listen() failed on port " + toString(targets[j].port) + ": " + std::string(strerror(errno));
+				close(fd);
+				throw Error(msg, __FILE__, __LINE__);
+			}
+
+			_listening_fds.push_back(fd);
+			_fd_to_server[fd] = ListenSocketInfo(&_servers[i], targets[j].host, targets[j].port);
+
+			add_poll_fd(fd, POLLIN);
+
+			used_targets.insert(key);
+			Logger::info(Logger::TAG_EVENT, "Listening on " + hostDesc + ":" + toString(targets[j].port));
+		}
+    }
 }
 
 /* ************************************************************************** */
@@ -130,17 +205,16 @@ void Server_Manager::init_sockets()
 
 bool Server_Manager::is_listening_fd(int fd) const
 {
-    std::vector<int>::const_iterator it =
-        std::find(_listening_fds.begin(), _listening_fds.end(), fd);
+    std::vector<int>::const_iterator it = std::find(_listening_fds.begin(), _listening_fds.end(), fd);
     return (it != _listening_fds.end());
 }
 
-Server *Server_Manager::get_server_by_fd(int fd)
+const Server_Manager::ListenSocketInfo *Server_Manager::get_listen_info(int fd) const
 {
-    std::map<int, Server*>::iterator it = _fd_to_server.find(fd);
+    std::map<int, ListenSocketInfo>::const_iterator it = _fd_to_server.find(fd);
     if (it == _fd_to_server.end())
         return 0;
-    return it->second;
+    return &it->second;
 }
 
 void Server_Manager::update_poll_events(int fd, short events)
@@ -156,6 +230,98 @@ void Server_Manager::update_poll_events(int fd, short events)
     }
 }
 
+void Server_Manager::add_poll_fd(int fd, short events)
+{
+	struct pollfd pfd;
+	pfd.fd = fd;
+	pfd.events = events;
+	pfd.revents = 0;
+	_poll_fds.push_back(pfd);
+}
+
+void Server_Manager::remove_poll_fd(int fd)
+{
+	for (size_t i = 0; i < _poll_fds.size(); ++i)
+	{
+		if (_poll_fds[i].fd == fd)
+		{
+			_poll_fds.erase(_poll_fds.begin() + i);
+			break;
+		}
+	}
+}
+
+void Server_Manager::register_cgi_fds(Client &client)
+{
+	if (!client.has_active_cgi())
+		return;
+	int in_fd = client.get_cgi_stdin_fd();
+	if (in_fd >= 0 && _cgi_fd_map.find(in_fd) == _cgi_fd_map.end())
+	{
+		add_poll_fd(in_fd, POLLOUT);
+		_cgi_fd_map[in_fd] = CgiFdInfo(&client, false);
+	}
+	int out_fd = client.get_cgi_stdout_fd();
+	if (out_fd >= 0 && _cgi_fd_map.find(out_fd) == _cgi_fd_map.end())
+	{
+		add_poll_fd(out_fd, POLLIN);
+		_cgi_fd_map[out_fd] = CgiFdInfo(&client, true);
+	}
+}
+
+void Server_Manager::unregister_cgi_fd(int fd)
+{
+	std::map<int, CgiFdInfo>::iterator it = _cgi_fd_map.find(fd);
+	if (it != _cgi_fd_map.end())
+		_cgi_fd_map.erase(it);
+	remove_poll_fd(fd);
+}
+
+bool Server_Manager::handle_cgi_poll_event(struct pollfd &pfd)
+{
+	std::map<int, CgiFdInfo>::iterator it = _cgi_fd_map.find(pfd.fd);
+	if (it == _cgi_fd_map.end())
+		return false;
+	Client *client = it->second.client;
+	bool is_stdout = it->second.is_stdout;
+	bool ok = true;
+
+	if (pfd.revents & (POLLERR | POLLNVAL))
+		ok = false;
+	else if (!is_stdout && (pfd.revents & POLLOUT))
+		ok = client->handle_cgi_stdin_event();
+	else if (is_stdout && (pfd.revents & (POLLIN | POLLHUP)))
+		ok = client->handle_cgi_stdout_event();
+
+	if (ok)
+		client->last_activity_tick = _tick_counter;
+
+	bool removed = false;
+	if (!ok)
+	{
+		unregister_cgi_fd(pfd.fd);
+		removed = true;
+		if (client->get_state() == Client::SENDING_RESPONSE)
+			update_poll_events(client->get_fd(), POLLOUT);
+		return removed;
+	}
+
+	if (!is_stdout && client->is_cgi_body_complete())
+	{
+		unregister_cgi_fd(pfd.fd);
+		removed = true;
+	}
+	else if (is_stdout && client->is_cgi_stdout_closed())
+	{
+		unregister_cgi_fd(pfd.fd);
+		removed = true;
+		client->handle_cgi_completion();
+		if (client->get_state() == Client::SENDING_RESPONSE)
+			update_poll_events(client->get_fd(), POLLOUT);
+	}
+	return removed;
+}
+
 /* ************************************************************************** */
 /*                            Client management                               */
 /* ************************************************************************** */
@@ -163,16 +329,24 @@ void Server_Manager::update_poll_events(int fd, short events)
 void Server_Manager::close_connection(int client_fd)
 {
     Logger::info(Logger::TAG_EVENT, "Closing client FD " + toString(client_fd));
-    _clients.erase(client_fd);
+    std::map<int, Client>::iterator it = _clients.find(client_fd);
+    if (it == _clients.end())
+        return;
+    Client &client = it->second;
+	client.abort_cgi();
+	for (std::map<int, CgiFdInfo>::iterator cgi_it = _cgi_fd_map.begin(); cgi_it != _cgi_fd_map.end(); )
+	{
+		if (cgi_it->second.client == &client)
+		{
+			remove_poll_fd(cgi_it->first);
+			_cgi_fd_map.erase(cgi_it++);
+		}
+		else
+			++cgi_it;
+	}
+    _clients.erase(it);
 
-    for (size_t i = 0; i < _poll_fds.size(); ++i)
-    {
-        if (_poll_fds[i].fd == client_fd)
-        {
-            _poll_fds.erase(_poll_fds.begin() + i);
-            break;
-        }
-    }
+    remove_poll_fd(client_fd);
 
     if (close(client_fd) < 0)
         Logger::error(Logger::TAG_FD, "close() failed for FD " + toString(client_fd) + ": " + std::string(strerror(errno)));}
@@ -180,14 +354,24 @@ void Server_Manager::close_connection(int client_fd)
 
 void Server_Manager::check_idle_clients()
 {
-    time_t now = time(NULL);
-
+    unsigned long long now = _tick_counter;
     for (std::map<int, Client>::iterator it = _clients.begin(); it != _clients.end(); )
     {
         int fd = it->first;
-        time_t last = it->second.last_active_time;
+        unsigned long long last = it->second.last_activity_tick;
 
-        if (now - last > IDLE_TIMEOUT_SECONDS)
+		if (it->second.has_active_cgi())
+		{
+			++it;
+			continue;
+		}
+		if (it->second.is_sending_response() && it->second.has_pending_response_bytes())
+		{
+			++it;
+			continue;
+		}
+
+        if (last > 0 && now >= last && now - last >= IDLE_TIMEOUT_MS_VALUE)
         {
             Logger::warn(Logger::TAG_TIMEOUT, "Client FD " + toString(fd) + " idle timeout.");
             ++it;
@@ -200,6 +384,19 @@ void Server_Manager::check_idle_clients()
     }
 }
 
+
+static std::string ipv4_to_string(uint32_t host_ip)
+{
+    std::string addr;
+    addr += toString((host_ip >> 24) & 0xFF);
+    addr += ".";
+    addr += toString((host_ip >> 16) & 0xFF);
+    addr += ".";
+    addr += toString((host_ip >> 8) & 0xFF);
+    addr += ".";
+    addr += toString(host_ip & 0xFF);
+    return addr;
+}
 
 void Server_Manager::accept_new_client(int server_fd)
 {
@@ -223,25 +420,32 @@ void Server_Manager::accept_new_client(int server_fd)
 
         set_fd_non_blocking(client_fd);
 
-        Server *config = get_server_by_fd(server_fd);
-        if (!config)
+        const ListenSocketInfo *info = get_listen_info(server_fd);
+        if (!info || !info->server)
         {
 			Logger::error(Logger::TAG_CONF, "No server config for FD " + toString(server_fd));
 			close(client_fd);
             continue;
         }
+        Server *config = info->server;
 
-        Client c(client_fd, config);
-        c.last_active_time = time(NULL);
+        std::string remoteAddr;
+        std::string remotePort;
+        if (client_addr.ss_family == AF_INET)
+        {
+            struct sockaddr_in *sin = reinterpret_cast<struct sockaddr_in*>(&client_addr);
+            uint32_t ip_host = ntohl(sin->sin_addr.s_addr);
+            remoteAddr = ipv4_to_string(ip_host);
+            remotePort = toString(ntohs(sin->sin_port));
+        }
+
+        Client c(client_fd, config, info->port, remoteAddr, remotePort);
+        c.last_activity_tick = _tick_counter;
         _clients.insert(std::make_pair(client_fd, c));
 
-        struct pollfd pfd;
-        pfd.fd = client_fd;
-        pfd.events = POLLIN;
-        pfd.revents = 0;
-        _poll_fds.push_back(pfd);
+        add_poll_fd(client_fd, POLLIN);
 
-      Logger::info(Logger::TAG_EVENT, "Accepted new client FD " + toString(client_fd));
+		Logger::info(Logger::TAG_EVENT, "Accepted new client FD " + toString(client_fd));
 	}
 }
 
@@ -265,7 +469,7 @@ bool Server_Manager::receive_request(int fd)
         return true;
     }
 
-    client.last_active_time = time(NULL);
+    client.last_activity_tick = _tick_counter;
 
     Client::ParsingState st = client.handle_recv_data(buf, n);
 
@@ -285,42 +489,76 @@ bool Server_Manager::send_response(int client_fd)
     size_t &sent = client.get_sent_bytes();
 
     size_t total = buf.size();
+
+    if (sent == 0 && !buf.empty())
+    {
+        size_t lineEnd = buf.find("\r\n");
+        std::string statusLine = (lineEnd != std::string::npos) ? buf.substr(0, lineEnd) : buf;
+        std::string statusCode = "unknown";
+        size_t sp1 = statusLine.find(' ');
+        if (sp1 != std::string::npos)
+        {
+            size_t sp2 = statusLine.find(' ', sp1 + 1);
+            if (sp2 != std::string::npos)
+                statusCode = statusLine.substr(sp1 + 1, sp2 - sp1 - 1);
+            else
+                statusCode = statusLine.substr(sp1 + 1);
+        }
+        const http_request &req = client.get_request();
+        Logger::info(Logger::TAG_EVENT, "Responding FD " + toString(client_fd) + " status " + statusCode + " ← " + req.get_method() + " " + req.get_path());
+    }
+
     if (sent >= total)
     {
+        bool keep = client.get_request().keep_alive() && client.get_error_code() == 0;
+        if (keep)
+        {
+            client.reset();
+            client.last_activity_tick = _tick_counter;
+            update_poll_events(client_fd, POLLIN);
+            client.update_state(Client::RECVING_REQUEST);
+            return true;
+        }
         client.update_state(Client::CONNECTION_CLOSE);
         close_connection(client_fd);
         return true;
     }
 
-    ssize_t bytes_sent = send(client_fd, buf.c_str() + sent, total - sent, 0);
+    ssize_t bytes_sent = send(client_fd, buf.data() + sent, total - sent, 0);
 
     if (bytes_sent < 0)
     {
-		Logger::error(Logger::TAG_FD, "send() failed for fd " + toString(client_fd));
+        Logger::warn(Logger::TAG_FD, "send() failed for FD " + toString(client_fd));
         close_connection(client_fd);
         return true;
     }
+    if (bytes_sent == 0)
+        return false;
 
     sent += bytes_sent;
+	client.last_activity_tick = _tick_counter;
 
-	if (sent >= total)
-	{
-    	if (client.get_request().keep_alive())
-    	{
-        	client.reset();
-        	update_poll_events(client_fd, POLLIN);
-        	client.update_state(Client::RECVING_REQUEST);
-    	}
-    	else
-    	{
-        	client.update_state(Client::CONNECTION_CLOSE);
-        	close_connection(client_fd);
-    	}
-		Logger::info(Logger::TAG_EVENT,"send response to FD " + toString(client_fd));
-    	return true;
-	}
+    if (sent >= total)
+    {
+        bool keep = client.get_request().keep_alive() && client.get_error_code() == 0;
+        if (keep)
+        {
+            client.reset();
+            client.last_activity_tick = _tick_counter;
+            update_poll_events(client_fd, POLLIN);
+            client.update_state(Client::RECVING_REQUEST);
+        }
+        else
+        {
+            client.update_state(Client::CONNECTION_CLOSE);
+            close_connection(client_fd);
+        }
+        return true;
+    }
+
     return false;
 }
+
 
 
 /* ************************************************************************** */
@@ -333,18 +571,17 @@ void Server_Manager::run()
 
 	while (g_running)
 	{
-		check_idle_clients();
 		if (_poll_fds.empty())
 		{
 			Logger::error(Logger::TAG_POLL,"No poll fds left. Exiting loop.");
 			break;
 		}
-		int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
-		if (ret < 0)
-		{
-			if (errno == EINTR)
+			int ret = poll(&_poll_fds[0], _poll_fds.size(), TIMEOUT_MS);
+			if (ret < 0)
 			{
-				if (!g_running)
+				if (errno == EINTR)
+				{
+					if (!g_running)
 				{
 					Logger::info(Logger::TAG_CORE,"ctrl + c situation. Exiting loop."); 
 					break;
@@ -353,10 +590,17 @@ void Server_Manager::run()
 			}
 			Logger::error(Logger::TAG_POLL,"poll() failed: " + std::string(strerror(errno)));
 		break;
-		}
+			}
 
-        if (ret == 0)
-            continue;
+			unsigned long long now_ms = read_uptime_ms();
+			if (now_ms != 0)
+				_tick_counter = now_ms;
+
+	        if (ret == 0)
+			{
+				check_idle_clients();
+	            continue;
+		}
 
         for (size_t i = 0; i < _poll_fds.size(); ++i)
         {
@@ -368,10 +612,19 @@ void Server_Manager::run()
 
             bool closed = false;
 
+			std::map<int, CgiFdInfo>::iterator cgi_it = _cgi_fd_map.find(fd);
+			if (cgi_it != _cgi_fd_map.end())
+			{
+				bool removed = handle_cgi_poll_event(pfd);
+				if (removed && i > 0)
+					--i;
+				continue;
+			}
+
             if (is_listening_fd(fd))
             {
                 if (pfd.revents & POLLIN)
-                    accept_new_client(fd);
+					accept_new_client(fd);
                 continue;
             }
 
@@ -395,11 +648,19 @@ void Server_Manager::run()
                 {
                     Client &client = it->second;
 
-                    if (client.get_state() == Client::REQUEST_COMPLETE)
+                    if (client.get_state() == Client::REQUEST_COMPLETE || client.get_state() == Client::ERROR)
                     {
-                        client.build_response();
-                        client.update_state(Client::SENDING_RESPONSE);
-                        update_poll_events(fd, POLLOUT);
+						client.build_response();
+						Client::ClientState state = client.get_state();
+							if (state == Client::SENDING_RESPONSE)
+							{
+								update_poll_events(fd, POLLOUT);
+							}
+							else if (state == Client::CGI_SENDING_BODY || state == Client::CGI_READING_OUTPUT)
+							{
+								update_poll_events(fd, 0);
+								register_cgi_fds(client);
+							}
                     }
                 }
             }
@@ -411,5 +672,6 @@ void Server_Manager::run()
             if (closed && i > 0)
                 --i;
         }
+		check_idle_clients();
     }
 }

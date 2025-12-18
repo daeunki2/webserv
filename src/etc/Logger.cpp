@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/29 17:41:32 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:41:35 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/03 16:38:09 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -59,7 +59,7 @@ std::string Logger::tagToString(Tag tag)
 
 void Logger::info(Tag tag, const std::string &msg)
 {
-    std::cout
+    std::cerr
         << color(bracket("INFO"), C_GREEN)
         << color(bracket(tagToString(tag)), C_GRAY)
         << msg << std::endl;
@@ -67,7 +67,7 @@ void Logger::info(Tag tag, const std::string &msg)
 
 void Logger::warn(Tag tag, const std::string &msg)
 {
-    std::cout
+    std::cerr
         << color(bracket("WARN"), C_YELLOW)
         << color(bracket(tagToString(tag)), C_GRAY)
         << msg << std::endl;
@@ -75,7 +75,7 @@ void Logger::warn(Tag tag, const std::string &msg)
 
 void Logger::error(Tag tag, const std::string &msg)
 {
-    std::cout
+    std::cerr
         << color(bracket("ERROR"), C_RED)
         << color(bracket(tagToString(tag)), C_GRAY)
         << msg << std::endl;
@@ -83,7 +83,7 @@ void Logger::error(Tag tag, const std::string &msg)
 
 void Logger::debug(Tag tag, const std::string &msg)
 {
-    std::cout
+    std::cerr
         << color(bracket("DEBUG"), C_CYAN)
         << color(bracket(tagToString(tag)), C_GRAY)
         << msg << std::endl;

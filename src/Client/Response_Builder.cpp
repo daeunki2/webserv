@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:28:29 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:16:16 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/15 09:51:55 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,6 +19,7 @@
 #include <fstream>
 #include <sstream>
 #include <cstdio>
+#include <cctype>
 
 /* ************************************************************************** */
 /*                               Constructor                                  */
@@ -30,6 +31,34 @@ Response_Builder::Response_Builder(Server *server, const http_request &req, Clie
 
 Response_Builder::~Response_Builder()
 {}
+
+bool Response_Builder::isAbsolutePath(const std::string &path)
+{
+    return (!path.empty() && path[0] == '/');
+}
+
+std::string Response_Builder::trimTrailingSlashes(const std::string &path)
+{
+    if (path.size() <= 1)
+        return path;
+    size_t end = path.size();
+    while (end > 1 && path[end - 1] == '/')
+        --end;
+    return path.substr(0, end);
+}
+
+std::string Response_Builder::resolveRootPath(const Location *loc) const
+{
+    std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
+
+    if (root.empty())
+        root = ".";
+
+    std::string trimmed = trimTrailingSlashes(root);
+    if (trimmed.empty())
+        trimmed = ".";
+    return trimmed;
+}
 
 /* ************************************************************************** */
 /*                               Helpers                                      */
@@ -62,28 +91,6 @@ std::string Response_Builder::statusMessage(int status) const
 	return "Unknown";
 }
 
-const Location* Response_Builder::matchLocation(const std::string &path) const
-{
-    const std::vector<Location> &locs = _server->getLocations();
-    const Location *best = 0;
-    size_t bestLen = 0;
-
-    for (size_t i = 0; i < locs.size(); ++i)
-    {
-        const std::string &lp = locs[i].getPath();
-
-        if (lp.size() == 0)
-            continue;
-
-        if (path.compare(0, lp.size(), lp) == 0 && lp.size() > bestLen)
-        {
-            best = &locs[i];
-            bestLen = lp.size();
-        }
-    }
-    return best;
-}
-
 bool Response_Builder::isMethodAllowed(const Location *loc) const
 {
     if (!loc)
@@ -105,39 +112,51 @@ bool Response_Builder::isMethodAllowed(const Location *loc) const
 std::string Response_Builder::getMimeType(const std::string &path) const
 {
     std::string::size_type pos = path.rfind('.');
-    if (pos == std::string::npos) return "application/octet-stream";
+    if (pos == std::string::npos)
+		return "application/octet-stream";
 
     std::string ext = path.substr(pos + 1);
-    if (ext == "html" || ext == "htm") return "text/html";
-    if (ext == "css") return "text/css";
-    if (ext == "js") return "application/javascript";
-    if (ext == "png") return "image/png";
-    if (ext == "jpg" || ext == "jpeg") return "image/jpeg";
-    if (ext == "gif") return "image/gif";
-    if (ext == "txt") return "text/plain";
+    if (ext == "html" || ext == "htm")
+		return "text/html";
+    if (ext == "css")
+		return "text/css";
+    if (ext == "js")
+		return "application/javascript";
+    if (ext == "png")
+		return "image/png";
+    if (ext == "jpg" || ext == "jpeg")
+		return "image/jpeg";
+    if (ext == "gif")
+		return "image/gif";
+    if (ext == "txt")
+		return "text/plain";
 
     return "application/octet-stream";
 }
 
 std::string Response_Builder::applyRoot(const Location *loc, const std::string &path) const
 {
-    std::string root = (loc && !loc->getRoot().empty()) ? loc->getRoot() : _server->getRoot();
+    std::string base = resolveRootPath(loc);
 
     std::string url = path;
+    if (loc)
+    {
+        const std::string& lp = loc->getPath();
+        if (!lp.empty() && path.compare(0, lp.size(), lp) == 0)
+            url = path.substr(lp.size());
+    }
 
-    if (loc && path.compare(0, loc->getPath().size(), loc->getPath()) == 0)
-        url = path.substr(loc->getPath().size());
+    if (!url.empty() && url[0] == '/')
+        url.erase(0, 1);
 
-    if (!root.empty() && root[root.size() - 1] == '/')
-        root.erase(root.size() - 1);
+    if (url.empty())
+        return base;
 
-    // Ensure url starts with slash
-    if (url.empty() || url[0] != '/')
-        url = "/" + url;
+    if (base == "/")
+        return "/" + url;
 
-    return root + url;
+    return base + "/" + url;
 }
-
 
 std::string Response_Builder::findErrorPage(int status) const
 {
@@ -159,8 +178,19 @@ std::string Response_Builder::buildSimpleResponse(int status, const std::string 
 
     oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
     oss << "Content-Length: " << body.size() << "\r\n";
-    oss << "Content-Type: text/html\r\n";
-	oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
+
+    if (!body.empty())
+        oss << "Content-Type: text/html\r\n";
+
+    bool keep = _req.keep_alive();
+
+    if (_client && _client->get_error_code() != 0)
+        keep = false;
+
+    if (status == 413)
+        keep = false;
+
+    oss << "Connection: " << (keep ? "keep-alive" : "close") << "\r\n\r\n";
     oss << body;
 
     return oss.str();
@@ -185,7 +215,15 @@ std::string Response_Builder::buildErrorResponse(int status, const std::string &
             oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
             oss << "Content-Length: " << content.size() << "\r\n";
             oss << "Content-Type: text/html; charset=UTF-8\r\n";
-			oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
+
+            bool keep = _req.keep_alive();
+
+            if (_client && _client->get_error_code() != 0)
+                keep = false;
+            if (status == 413)
+                keep = false;
+
+            oss << "Connection: " << (keep ? "keep-alive" : "close") << "\r\n\r\n";
             oss << content;
 
             return oss.str();
@@ -204,17 +242,11 @@ std::string Response_Builder::buildRedirectResponse(int status, const std::strin
 {
     std::ostringstream oss;
 
-    std::string body =
-        "<html><body><h1>Redirect</h1>"
-        "<p><a href=\"" + url + "\">" + url + "</a></p>"
-        "</body></html>";
-
     oss << "HTTP/1.1 " << status << " " << statusMessage(status) << "\r\n";
     oss << "Location: " << url << "\r\n";
-    oss << "Content-Length: " << body.size() << "\r\n";
-    oss << "Content-Type: text/html\r\n";
-		oss << "Connection: " << (_req.keep_alive() ? "keep-alive" : "close") << "\r\n\r\n";
-    oss << body;
+    oss << "Content-Length: 0\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
 
     return oss.str();
 }
@@ -289,7 +321,7 @@ std::string Response_Builder::handleDelete(const Location *loc, const std::strin
     if (remove(fsPath.c_str()) != 0)
         return buildErrorResponse(500, "Delete failed");
 
-    return buildSimpleResponse(200, "<html><body><h1>Deleted</h1></body></html>");
+    return buildSimpleResponse(200, "");
 }
 
 std::string Response_Builder::sanitizeFilename(const std::string &name)
@@ -374,10 +406,10 @@ std::string Response_Builder::parseMultipart(const std::string &body,const std::
 
     return "";
 }
-
 std::string Response_Builder::handleGet(const Location *loc)
 {
-    std::string fsPath = applyRoot(loc, _req.get_path());
+    std::string reqPath = _req.get_path();
+    std::string fsPath  = applyRoot(loc, reqPath);
 
     struct stat st;
     if (stat(fsPath.c_str(), &st) < 0)
@@ -385,48 +417,63 @@ std::string Response_Builder::handleGet(const Location *loc)
 
     if (S_ISDIR(st.st_mode))
     {
-        const std::string &reqPath = _req.get_path();
-
-        if (!reqPath.empty() && reqPath[reqPath.size() - 1] != '/')
-        {
-            std::string location = reqPath + "/";
-            return "HTTP/1.1 301 Moved Permanently\r\n"
-                   "Location: " + location + "\r\n"
-                   "Content-Length: 0\r\n"
-                   "Connection: " + std::string(_req.keep_alive() ? "keep-alive" : "close") +
-                   "\r\n\r\n";
-        }
+        bool autoindexEnabled = (loc && loc->getAutoindex());
+        bool needsSlash = (!reqPath.empty() && reqPath[reqPath.size() - 1] != '/');
+        bool hasIndexFile = false;
+        std::string idxPath;
 
         if (loc && !loc->getIndex().empty())
         {
-            std::string idx = fsPath + "/" + loc->getIndex();
-            if (stat(idx.c_str(), &st) == 0 && S_ISREG(st.st_mode))
-                return buildFileResponse(idx, 200);
+            idxPath = fsPath;
+            if (idxPath[idxPath.size() - 1] != '/')
+                idxPath += "/";
+            idxPath += loc->getIndex();
+
+            struct stat idxStat;
+            if (stat(idxPath.c_str(), &idxStat) == 0 && S_ISREG(idxStat.st_mode))
+                hasIndexFile = true;
         }
 
-        // autoindex
-		if (loc && loc->getAutoindex())
-    		return buildAutoindexResponse(fsPath, _req.get_path());
-        return buildErrorResponse(403, "Forbidden");
+        if (needsSlash)
+        {
+            if (hasIndexFile || autoindexEnabled)
+                return buildRedirectResponse(301, reqPath + "/");
+            return buildErrorResponse(404, "Not Found");
+        }
+
+        if (hasIndexFile)
+            return buildFileResponse(idxPath, 200);
+
+        if (autoindexEnabled)
+            return buildAutoindexResponse(fsPath, reqPath);
+
+        return buildErrorResponse(404, "Not Found");
     }
 
     return buildFileResponse(fsPath, 200);
 }
 
+
+
 std::string Response_Builder::handlePost(const Location *loc, const std::string &path)
 {
     (void)path;
-
-    if (!loc || loc->getUploadPath().empty())
+    if (_client->get_error_code() == 413)
+    {
+        return buildErrorResponse(413, "Payload Too Large");
+    }
+    if (!loc )
         return buildSimpleResponse(200, "<html><body><h1>POST OK</h1></body></html>");
 
     std::string uploadDir = loc->getUploadPath();
+
+    if (uploadDir.empty())
+        return buildSimpleResponse(200, "<html><body><h1>POST OK</h1></body></html>");
 
     std::string ctype = _req.get_header("Content-Type");
     size_t bpos = ctype.find("boundary=");
     if (bpos == std::string::npos)
     {
-//        Logger::warn("Missing multipart boundary");
         return buildErrorResponse(400, "Missing multipart boundary");
     }
 
@@ -439,11 +486,9 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
     {
         if (err == "500")
         {
-//            Logger::warn("Multipart upload failed (server error)");
             return buildErrorResponse(500, "Upload failed");
         }
 
-//        Logger::warn("Malformed multipart request");
         return buildErrorResponse(400, "Malformed multipart body");
     }
 
@@ -457,55 +502,95 @@ std::string Response_Builder::handlePost(const Location *loc, const std::string 
 /*                                  build()                                   */
 /* ************************************************************************** */
 
+
+std::string Response_Builder::build413Response() const
+{
+    std::ostringstream oss;
+    oss << "HTTP/1.1 413 Payload Too Large\r\n";
+    oss << "Content-Length: 0\r\n";
+    oss << "Connection: close\r\n";
+    oss << "\r\n";
+    return oss.str();
+}
+
 std::string Response_Builder::build()
 {
     const std::string &method = _req.get_method();
     const std::string &path   = _req.get_path();
-
+    size_t body_size          = _req.get_body().size();
 
     Logger::info(Logger::TAG_REQ, "FD " + toString(_client->get_fd()) + " build response for " + method + " " + path);
-    
-	if (_client->get_error_code() != 0)
-    {
-        int code = _client->get_error_code();
-		
-		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " responding to parse error");
-        Logger::info(Logger::TAG_EVENT,"FD " + toString(_client->get_fd())+ " response decided: "+ toString(code) + " " + statusMessage(code)
-        );
 
-        return buildErrorResponse(code, statusMessage(code));
+    if (_client->get_error_code() != 0)
+    {
+        Logger::warn(Logger::TAG_REQ, "Returning parse error " +
+            toString(_client->get_error_code()) + " for FD " + toString(_client->get_fd()));
+        return buildErrorResponse(_client->get_error_code(), statusMessage(_client->get_error_code()));
     }
 
-    const Location *loc = matchLocation(path);
+    const Location *loc = (_server ? _server->findLocation(path) : NULL);
+    if (loc)
+        Logger::info(Logger::TAG_REQ, "Matched location: " + loc->getPath());
+    else
+        Logger::info(Logger::TAG_REQ, "Matched location: <none>");
 
     if (!isMethodAllowed(loc))
-	{
-		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " method not allowed: " + method);
-
-        Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 405 Method Not Allowed");
-        return buildErrorResponse(405, "Method Not Allowed");
-	}
-    if (loc && loc->isRedirect())
     {
-        return buildRedirectResponse(loc->getRedirectCode(),loc->getRedirectUrl());
+        Logger::warn(Logger::TAG_REQ, "Method not allowed: " + method + " " + path);
+        return buildErrorResponse(405, "Method Not Allowed");
     }
 
-    if (method == "POST" && _req.get_body().size() > _server->getClientMaxBodySize())
+    if (loc && loc->isRedirect())
     {
-		Logger::warn(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " payload too large");
+        Logger::info(Logger::TAG_REQ, "Redirecting " + path + " -> " + loc->getRedirectUrl());
+        return buildRedirectResponse(loc->getRedirectCode(), loc->getRedirectUrl());
+    }
 
-        Logger::info(Logger::TAG_EVENT, "FD " + toString(_client->get_fd()) + " response decided: 413 Payload Too Large");
-		return buildErrorResponse(413, "Payload Too Large");
+    if (method == "POST" && loc && loc->hasClientMaxBodySize())
+    {
+        long long limit = loc->getClientMaxBodySize();
+
+        if (limit > 0 && body_size > (size_t)limit)
+        {
+            Logger::warn(Logger::TAG_REQ, "Body exceeds limit (" + toString(body_size) + " > " + toString(limit) + ")");
+            return build413Response();
+        }
+    }
+
+    bool isCgi = isCgiRequest(loc, path);
+
+    if (isCgi)
+    {
+        std::string script_path = applyRoot(loc, path);
+        Logger::info(Logger::TAG_CGI, "Launching CGI for " + method + " " + path);
+        if (!_client->start_cgi_process(loc, script_path))
+            return buildErrorResponse(500, "CGI start failed");
+        return "";
+    }
+
+    if (method == "HEAD")
+    {
+        std::string res = handleGet(loc);
+        size_t pos = res.find("\r\n\r\n");
+        if (pos != std::string::npos)
+            res.erase(pos + 4); 
+        return res;
     }
 
     if (method == "GET")
+    {
         return handleGet(loc);
+    }
 
     if (method == "POST")
+    {
         return handlePost(loc, path);
+    }
 
     if (method == "DELETE")
+    {
         return handleDelete(loc, path);
+    }
 
     return buildErrorResponse(501, "Not Implemented");
 }

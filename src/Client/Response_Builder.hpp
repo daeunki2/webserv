@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/06 11:31:43 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/28 19:18:47 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 18:59:56 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -17,10 +17,12 @@
 #include <string>
 #include <sstream>
 #include <fstream>
+#include <unistd.h>
 #include <vector>
 #include <sys/stat.h>
 #include "Server.hpp"
 #include "Location.hpp"
+#include "Utils.hpp"
 #include "http_request.hpp"
 #include "Client.hpp"
 
@@ -37,7 +39,6 @@ private:
 private:
     // 내부 유틸리티
     std::string statusMessage(int status) const;
-    const Location* matchLocation(const std::string &path) const;
     bool isMethodAllowed(const Location *loc) const;
     std::string getMimeType(const std::string &path) const;
     std::string applyRoot(const Location *loc, const std::string &path) const;
@@ -46,20 +47,29 @@ private:
     std::string buildSimpleResponse(int status, const std::string &body);
     std::string buildErrorResponse(int status, const std::string &msg);
     std::string buildRedirectResponse(int status, const std::string &url);
-    std::string buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath);
+	std::string buildAutoindexResponse(const std::string &fsPath, const std::string &urlPath);
     std::string buildFileResponse(const std::string &fsPath, int status);
+	std::string resolveRootPath(const Location *loc) const;
+	static bool isAbsolutePath(const std::string &path);
+	static std::string trimTrailingSlashes(const std::string &path);
 	/* Method handlers */
 	std::string handleGet(const Location *loc);
 	std::string handlePost(const Location *loc, const std::string &path);
 	std::string handleDelete(const Location *loc, const std::string &path);
 
 	/* POST helpers */
-std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
-public:
+	std::string parseMultipart(const std::string &body,const std::string &boundary,const std::string &uploadDir);
+	/*CGI*/
+	bool		isCgiRequest(const Location* loc, const std::string& path) const;
+	std::string buildHttpResponseFromCgi(const std::string& cgiOutput);
+	std::string build413Response() const;
+
+	public:
     Response_Builder(Server* server, const http_request& req, Client* client);
     ~Response_Builder();
 
-    std::string build();  // 최종 응답 생성
+    std::string build();
+	std::string buildCgiResponse(const std::string& cgiOutput);
 };
 
 #endif

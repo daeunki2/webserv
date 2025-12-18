@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/18 16:13:45 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:27:02 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 17:33:41 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -21,26 +21,45 @@
 
 static bool parse_decimal_ll(const std::string& s, long long& out)
 {
-    if (s.empty()) return false;
+	if (s.empty()) return false;
 
-    size_t i = 0;
-    long long sign = 1;
+	size_t i = 0;
+	long long sign = 1;
 
-    if (s[0] == '+') i = 1;
-    else if (s[0] == '-') { sign = -1; i = 1; }
+	if (s[0] == '+')
+		i = 1;
+	else if (s[0] == '-')
+	{
+		sign = -1; i = 1;
+	}
 
-    if (i >= s.size()) return false;
+	if (i >= s.size())
+		return false;
 
-    long long v = 0;
-    for (; i < s.size(); ++i)
-    {
-        char c = s[i];
-        if (c < '0' || c > '9') return false;
-        v = v * 10 + (c - '0');
-    }
+	long long v = 0;
+	for (; i < s.size(); ++i)
+	{
+		char c = s[i];
+		if (c < '0' || c > '9') return false;
+		v = v * 10 + (c - '0');
+	}
+	out = v * sign;
+	return true;
+}
 
-    out = v * sign;
-    return true;
+static bool is_valid_http_method(const std::string& method)
+{
+	return (
+		method == "GET" ||
+		method == "POST" ||
+		method == "DELETE" ||
+		method == "HEAD"
+	);
+}
+
+static bool is_valid_http_version(const std::string& version)
+{
+	return (version == "HTTP/1.1" || version == "HTTP/1.0");
 }
 
 // -----------------------------------------------------------
@@ -48,7 +67,7 @@ static bool parse_decimal_ll(const std::string& s, long long& out)
 // -----------------------------------------------------------
 
 RequestParser::RequestParser()
-: _state(REQUEST_LINE),_error_code(0), _buffer(),_request(),_content_to_read(0),_chunk_size(0),_is_chunked(false)
+: _state(REQUEST_LINE),_error_code(0), _buffer(),_request(),_content_to_read(0),_chunk_size(0),_is_chunked(false),  _max_body_size(0), _body_received(0), _expect_continue(false),_max_body_configured(false)
 {
 	
 }
@@ -69,6 +88,10 @@ RequestParser& RequestParser::operator=(const RequestParser& o)
         _content_to_read = o._content_to_read;
         _chunk_size      = o._chunk_size;
         _is_chunked      = o._is_chunked;
+		_body_received   = o._body_received;
+        _max_body_size   = o._max_body_size;
+		_expect_continue = o._expect_continue;
+		_max_body_configured = o._max_body_configured;
     }
     return *this;
 }
@@ -84,6 +107,8 @@ void RequestParser::reset()
     _content_to_read = 0;
     _chunk_size = 0;
     _is_chunked = false;
+	_body_received = 0;
+	_expect_continue = false;
 }
 
 // -----------------------------------------------------------
@@ -117,7 +142,7 @@ RequestParser::feed(const char* data, size_t len)
             if (st != PARSING_IN_PROGRESS)
                 return st;
 
-            if (_state == HEADERS)
+            if (_state == HEADERS || _state == BODY)
                 return PARSING_IN_PROGRESS;
         }
         else if (_state == BODY)
@@ -196,8 +221,13 @@ RequestParser::ParsingState
 RequestParser::parse_request_line()
 {
     std::string line;
-    if (!extract_line(line))
-        return PARSING_IN_PROGRESS;
+    while (true)
+    {
+        if (!extract_line(line))
+            return PARSING_IN_PROGRESS;
+        if (!line.empty())
+            break;
+    }
 
     std::vector<std::string> tok;
     std::string tmp;
@@ -220,9 +250,31 @@ RequestParser::parse_request_line()
 		return PARSING_ERROR;
 	}
 
-    _request.set_method(tok[0]);
-    _request.set_uri(tok[1]);
-    _request.set_version(tok[2]);
+    _request.set_method(trim(tok[0]));
+    _request.set_uri(trim(tok[1]));
+    _request.set_version(trim(tok[2]));
+
+	const std::string &method = _request.get_method();
+	const std::string &version = _request.get_version();
+
+	if (!is_valid_http_method(method))
+	{
+		_state = ERROR;
+		_error_code = 501;
+		return PARSING_ERROR;
+	}
+	if (!is_valid_http_version(version))
+	{
+		_state = ERROR;
+		_error_code = 505;
+		return PARSING_ERROR;
+	}
+	if (_request.get_uri().empty())
+	{
+		_state = ERROR;
+		_error_code = 400;
+		return PARSING_ERROR;
+	}
 
     _state = HEADERS;
     return PARSING_IN_PROGRESS;
@@ -235,35 +287,60 @@ RequestParser::parse_request_line()
 RequestParser::ParsingState
 RequestParser::parse_headers()
 {
+	std::string line;
     while (true)
     {
-        std::string line;
         if (!extract_line(line))
             return PARSING_IN_PROGRESS;
-
         if (line.empty())
         {
-            if (_is_chunked)
-                _state = CHUNK_SIZE;
-            else if (_request.has_content_length())
+            if (_expect_continue)
             {
-                _content_to_read = _request.get_content_length();
-                if (_content_to_read < 0)
+                if (_request.has_content_length()
+                    && _max_body_size > 0
+                    && _request.get_content_length() > _max_body_size)
                 {
                     _state = ERROR;
-					_error_code = 400; // bad_request
+                    _error_code = 413; // Payload Too Large
                     return PARSING_ERROR;
                 }
+            }
+            if (_is_chunked)
+            {
+                _state = CHUNK_SIZE;
+            }
+            else if (_request.has_content_length())
+            {
+                long long cl = _request.get_content_length();
+                if (cl < 0)
+                {
+                    _state = ERROR;
+                    _error_code = 400;
+                    return PARSING_ERROR;
+                }
+                if (_max_body_size > 0 && cl > _max_body_size)
+                {
+                    _state = ERROR;
+                    _error_code = 413;
+                    return PARSING_ERROR;
+                }
+                _content_to_read = cl;
                 _state = BODY;
             }
             else
-			{
-			//	Logger::info(Logger::TAG_REQ, "HTTP request parsed: " + _request.get_method() + " " + _request.get_uri());
-                _state = COMPLETE;
-			}
+            {
+                if (_request.get_method() == "POST")
+                {
+                    _content_to_read = LLONG_MAX;
+                    _state = BODY;
+                }
+                else
+                {
+                    _state = COMPLETE;
+                }
+            }
             return PARSING_IN_PROGRESS;
         }
-
         parse_header_line(line);
         if (_state == ERROR)
             return PARSING_ERROR;
@@ -334,6 +411,15 @@ void RequestParser::parse_header_line(const std::string& line)
         else if (lv == "close")
             _request.set_keep_alive(false);
     }
+	else if (lname == "expect")
+    {
+        std::string lv;
+        for (size_t i = 0; i < value.size(); ++i)
+            lv.push_back(std::tolower(value[i]));
+
+        if (lv == "100-continue")
+            _expect_continue = true;
+    }
 }
 
 // -----------------------------------------------------------
@@ -343,7 +429,7 @@ void RequestParser::parse_header_line(const std::string& line)
 RequestParser::ParsingState
 RequestParser::parse_body()
 {
-    if (_content_to_read <= 0)
+    if (_content_to_read <= 0 && !_is_chunked)
     {
         _state = COMPLETE;
         return PARSING_IN_PROGRESS;
@@ -352,21 +438,38 @@ RequestParser::parse_body()
     if (_buffer.empty())
         return PARSING_IN_PROGRESS;
 
-    if (_buffer.size() < (size_t)_content_to_read)
+    size_t to_copy;
+
+    if (_request.has_content_length())
     {
-        _request.append_body(_buffer);
-        _content_to_read -= _buffer.size();
-        _buffer.clear();
-        return PARSING_IN_PROGRESS;
+        to_copy = _buffer.size();
+        if (to_copy > static_cast<size_t>(_content_to_read))
+            to_copy = static_cast<size_t>(_content_to_read);
+    }
+    else
+    {
+        to_copy = _buffer.size();
     }
 
-    std::string chunk = _buffer.substr(0, (size_t)_content_to_read);
-    _request.append_body(chunk);
-    _buffer.erase(0, (size_t)_content_to_read);
+    if (_max_body_size > 0 &&
+        _body_received + to_copy > static_cast<size_t>(_max_body_size))
+    {
+        _state      = ERROR;
+        _error_code = 413;
+        return PARSING_ERROR;
+    }
 
-    _content_to_read = 0;
-    _state = COMPLETE;
-//	Logger::info(Logger::TAG_REQ, "HTTP request parsed: "+ _request.get_method()+ " " + _request.get_uri());
+    _request.append_body(_buffer.substr(0, to_copy));
+    _body_received += to_copy;
+    _buffer.erase(0, to_copy);
+
+    if (_request.has_content_length())
+    {
+        _content_to_read -= static_cast<long long>(to_copy);
+        if (_content_to_read <= 0)
+            _state = COMPLETE;
+    }
+
     return PARSING_IN_PROGRESS;
 }
 
@@ -423,27 +526,37 @@ RequestParser::parse_chunk_size()
 // chunk-data
 // -----------------------------------------------------------
 
+
 RequestParser::ParsingState
 RequestParser::parse_chunk_data()
 {
     if (_buffer.size() < (size_t)(_chunk_size + 2))
         return PARSING_IN_PROGRESS;
 
-    std::string data = _buffer.substr(0, (size_t)_chunk_size);
-    _request.append_body(data);
-
-    if (_buffer[_chunk_size] != '\r' || _buffer[_chunk_size + 1] != '\n')
+    if (_max_body_size > 0 &&
+        _body_received + static_cast<size_t>(_chunk_size) > static_cast<size_t>(_max_body_size))
     {
-        _state = ERROR;
+        _state      = ERROR;
+        _error_code = 413;
+		return PARSING_ERROR;
+	}
+
+	std::string data = _buffer.substr(0, (size_t)_chunk_size);
+	_request.append_body(data);
+	_body_received += static_cast<size_t>(_chunk_size);
+
+	if (_buffer[_chunk_size] != '\r' || _buffer[_chunk_size + 1] != '\n')
+	{
+		_state = ERROR;
 		_error_code = 400;
-        return PARSING_ERROR;
-    }
+		return PARSING_ERROR;
+	}
 
-    _buffer.erase(0, (size_t)(_chunk_size + 2));
-    _chunk_size = 0;
+	_buffer.erase(0, (size_t)(_chunk_size + 2));
+	_chunk_size = 0;
 
-    _state = CHUNK_SIZE;
-    return PARSING_IN_PROGRESS;
+	_state = CHUNK_SIZE;
+	return PARSING_IN_PROGRESS;
 }
 
 // -----------------------------------------------------------
@@ -452,6 +565,21 @@ RequestParser::parse_chunk_data()
 
 const http_request& RequestParser::getRequest() const
 {
-    return _request;
+	return _request;
 }
 
+void RequestParser::set_max_body_size(long long max)
+{
+    if (max <= 0)
+        _max_body_size = LLONG_MAX;
+    else
+        _max_body_size = max;
+
+    _max_body_configured = true;
+}
+
+
+bool RequestParser::isMaxBodyConfigured() const
+{
+	return _max_body_configured;
+}

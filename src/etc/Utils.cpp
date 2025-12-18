@@ -6,7 +6,7 @@
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/11/29 17:41:47 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/29 17:41:48 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/05 17:56:18 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -51,6 +51,26 @@ std::vector<std::string> split(const std::string &s)
     return res;
 }
 
+char *ft_strdup(const char *str)
+{
+    if (!str)
+        return NULL;
+
+    int len = 0;
+    while (str[len] != '\0')
+        ++len;
+
+    char *dup = new char[len + 1];
+    for (int i = 0; i < len; ++i)
+        dup[i] = str[i];
+
+    dup[len] = '\0';
+    return dup;
+}
+
+
+
+
 std::vector<std::string> split(const std::string &s, char delim)
 {
     std::vector<std::string> res;
@@ -75,6 +95,11 @@ bool isNumber(const std::string &s)
 }
 
 int toInt(const std::string &s)
+{
+    return std::atoi(s.c_str());
+}
+
+long long toLLong(const std::string &s)
 {
     return std::atoi(s.c_str());
 }

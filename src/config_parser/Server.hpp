@@ -1,12 +1,12 @@
 /* ************************************************************************** */
 /*                                                                            */
 /*                                                        :::      ::::::::   */
-/*   server.hpp                                         :+:      :+:    :+:   */
+/*   Server.hpp                                         :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
 /*   By: daeunki2 <daeunki2@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2025/10/19 15:56:01 by daeunki2          #+#    #+#             */
-/*   Updated: 2025/11/19 13:11:01 by daeunki2         ###   ########.fr       */
+/*   Updated: 2025/12/11 15:22:21 by daeunki2         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -23,13 +23,23 @@
 
 class Server
 {
+public:
+	struct ListenTarget
+	{
+		std::string host;
+		int         port;
+	};
+
 private:
-    int _port;
+	std::vector<ListenTarget> _listenTargets;
     std::string _serverName;
     std::string _root;
-    size_t _clientMaxBodySize;
+    long long _clientMaxBodySize;
+	bool        _hasCgi;
+	std::string _cgiExtension;
+	std::string _cgiPath;
 
-    std::vector<Location> _locations;
+	std::vector<Location> _locations;
     std::vector<std::pair<int, std::string> > _errorPages; // code → file
 
 public:
@@ -40,22 +50,23 @@ public:
     ~Server();
 
     /* Setters */
-    void setPort(int p);
     void setServerName(const std::string &n);
     void setRoot(const std::string &r);
-    void setClientMaxBodySize(size_t size);
-
+    void setClientMaxBodySize(long long size);
+	void addListenTarget(const std::string &host, int port);
     void addLocation(const Location &loc);
     void addErrorPage(int code, const std::string &file);
+	bool hasListenTarget(const std::string &host, int port) const;
 
     /* Getters */
-    int getPort() const;
     const std::string &getServerName() const;
     const std::string &getRoot() const;
-    size_t getClientMaxBodySize() const;
-
+    long long getClientMaxBodySize() const;
+	const std::vector<ListenTarget> &getListenTargets() const;
     const std::vector<Location> &getLocations() const;
     const std::vector<std::pair<int, std::string> > &getErrorPages() const;
+
+    const Location *findLocation(const std::string &path) const;
 };
 
 #endif
